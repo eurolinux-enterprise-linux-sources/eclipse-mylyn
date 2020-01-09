@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.0"?>
+<!--
+    Copyright (c) 2007, 2009 David Green and others.
+    All rights reserved. This program and the accompanying materials
+    are made available under the terms of the Eclipse Public License v1.0
+    which accompanies this distribution, and is available at
+    http://www.eclipse.org/legal/epl-v10.html
+    
+    Contributors:
+        David Green - initial API and implementation
+ -->
+<plugin>
+   <extension-point id="markupLanguage" name="Markup Language" schema="schema/markupLanguage.exsd"/>
+   <extension-point id="markupValidationRule" name="Markup Validation Rule" schema="schema/markupValidationRule.exsd"/>
+
+   <!-- The wikitext content type. MarkupLanguage-providing plugins are expected to subclass this content type
+        for the purpose of associating the editor with the appropriate files -->
+   <extension
+         point="org.eclipse.core.contenttype.contentTypes">
+      <content-type
+            base-type="org.eclipse.core.runtime.text"
+            id="org.eclipse.mylyn.wikitext"
+            name="%content-type.name.0"
+            priority="normal">
+      </content-type>
+   </extension>   
+   	 <extension
+       point="org.eclipse.ant.core.antTasks">
+    	<antTask
+          class="org.eclipse.mylyn.wikitext.core.util.anttask.MarkupToEclipseHelpTask"
+          library="lib/wikitext-ant.jar"
+          name="wikitext-to-eclipse-help">
+    	</antTask>
+    	<antTask
+          class="org.eclipse.mylyn.wikitext.core.util.anttask.MarkupToHtmlTask"
+          library="lib/wikitext-ant.jar"
+          name="wikitext-to-html">
+    	</antTask>
+    	<antTask
+          class="org.eclipse.mylyn.wikitext.core.util.anttask.MarkupToDocbookTask"
+          library="lib/wikitext-ant.jar"
+          name="wikitext-to-docbook">
+    	</antTask> 
+    	<antTask
+          class="org.eclipse.mylyn.wikitext.core.util.anttask.MarkupToDitaTask"
+          library="lib/wikitext-ant.jar"
+          name="wikitext-to-dita">
+    	</antTask>
+    	<antTask
+          class="org.eclipse.mylyn.wikitext.core.util.anttask.MarkupToXslfoTask"
+          library="lib/wikitext-ant.jar"
+          name="wikitext-to-xslfo">
+    	</antTask>   	    	
+    </extension>
+   
+</plugin>
