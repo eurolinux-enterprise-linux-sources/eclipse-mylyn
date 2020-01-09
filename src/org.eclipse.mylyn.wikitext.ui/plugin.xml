@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?eclipse version="3.0"?>
 <!--
-    Copyright (c) 2007, 2009 David Green and others.
+    Copyright (c) 2007, 2010 David Green and others.
     All rights reserved. This program and the accompanying materials
     are made available under the terms of the Eclipse Public License v1.0
     which accompanies this distribution, and is available at
@@ -117,18 +117,26 @@
 	</extension>
 	
 	<extension point="org.eclipse.ui.editors">
-		<editor class="org.eclipse.mylyn.internal.wikitext.ui.editor.MarkupEditor"
-			contributorClass="org.eclipse.mylyn.internal.wikitext.ui.editor.MarkupEditorActionBarContributor"
-			default="true" icon="icons/editor-icon.gif"
-			id="org.eclipse.mylyn.wikitext.ui.editor.markupEditor" name="%editor.name.0">
+		<editor
+        class="org.eclipse.mylyn.internal.wikitext.ui.editor.MarkupEditor"
+        contributorClass="org.eclipse.mylyn.internal.wikitext.ui.editor.MarkupEditorActionBarContributor"
+        default="true"
+        icon="icons/editor-icon.gif"
+        id="org.eclipse.mylyn.wikitext.ui.editor.markupEditor"
+        name="%editor.name.0"
+        symbolicFontName="org.eclipse.mylyn.wikitext.ui.presentation.textFont">
 			<contentTypeBinding contentTypeId="org.eclipse.mylyn.wikitext"/>
 		</editor>
 	</extension>
 	
 	<extension point="org.eclipse.ui.contexts">
+		<context description="%context.description.1"
+			id="org.eclipse.mylyn.internal.wikitext.ui.editor.basicMarkupSourceContext" name="%context.name.1"
+			parentId="org.eclipse.ui.textEditorScope">
+		</context>
 		<context description="%context.description.0"
 			id="org.eclipse.mylyn.wikitext.ui.editor.markupSourceContext" name="%context.name.0"
-			parentId="org.eclipse.ui.textEditorScope">
+			parentId="org.eclipse.mylyn.internal.wikitext.ui.editor.basicMarkupSourceContext">
 		</context>
 	</extension>
 	
@@ -136,7 +144,7 @@
          <!--  win32:  M1=CTRL,    M2=SHIFT, M3=ALT, M4=-
             carbon: M1=COMMAND, M2=SHIFT, M3=ALT, M4=CTRL -->
 		<key sequence="F1"
-			contextId="org.eclipse.mylyn.wikitext.ui.editor.markupSourceContext"
+			contextId="org.eclipse.mylyn.internal.wikitext.ui.editor.basicMarkupSourceContext"
 			commandId="org.eclipse.mylyn.wikitext.ui.editor.showCheatSheetCommand"
 			schemeId="org.eclipse.ui.defaultAcceleratorConfiguration">
 		</key>
@@ -187,19 +195,18 @@
 			id="org.eclipse.mylyn.wikitext.ui.editor.preferences.EditorPreferencePage"
 			name="%page.name.0">
 		</page>
+  <page
+        category="org.eclipse.mylyn.wikitext.ui.editor.preferences.EditorPreferencePage"
+        class="org.eclipse.mylyn.internal.wikitext.ui.editor.preferences.WikiTextTemplatePreferencePage"
+        id="org.eclipse.mylyn.internal.wikitext.ui.editor.preferences.WikiTextTemplatePreferencePage"
+        name="%page.name.2">
+  </page>
 	</extension>
 	
 	<extension point="org.eclipse.core.runtime.preferences">
 		<initializer
 			class="org.eclipse.mylyn.internal.wikitext.ui.editor.preferences.PreferenceInitializer">
 		</initializer>
-	</extension>
-	
-	<extension id="org.eclipse.mylyn.wikitext.core.validation.problem"
-		name="WikiText Markup Problem" point="org.eclipse.core.resources.markers">
-		<persistent value="false" />
-		<super type="org.eclipse.core.resources.problemmarker" />
-		<super type="org.eclipse.core.resources.textmarker" />
 	</extension>
 	
 	<extension point="org.eclipse.ui.editors.annotationTypes">
@@ -224,7 +231,7 @@
           	`<with variable="activeContexts">
 	            <iterate operator="or">
 	               <equals
-	                     value="org.eclipse.mylyn.wikitext.ui.editor.markupSourceContext"/>
+	                     value="org.eclipse.mylyn.internal.wikitext.ui.editor.basicMarkupSourceContext"/>
 	            </iterate>
          	</with>
           </visibleWhen>
@@ -270,5 +277,44 @@
           class="org.eclipse.mylyn.internal.wikitext.ui.util.OutlineItemAdapterFactory">
        <adapter type="org.eclipse.ui.model.IWorkbenchAdapter"/>
     </factory>
+ </extension>
+ <extension
+       point="org.eclipse.ui.editors.templates">
+    <contextType
+          class="org.eclipse.mylyn.internal.wikitext.ui.editor.assist.SourceTemplateContextType"
+          id="org.eclipse.mylyn.wikitext.ui.editor"
+          name="%contextType.0">
+    </contextType>
+ </extension>
+ 
+ <extension
+           point="org.eclipse.ui.themes">
+      <themeElementCategory
+           id="org.eclipse.mylyn.wikitext.ui.presentation"
+           label="%themeElementCategory.label"/>
+    <fontDefinition
+          id="org.eclipse.mylyn.wikitext.ui.presentation.textFont"
+          label="%fontDefinition.text.label"
+          categoryId="org.eclipse.mylyn.wikitext.ui.presentation"
+          isEditable="true"
+          defaultsTo="org.eclipse.jface.textfont">
+          <description>%fontDefinition.text.description</description>
+    </fontDefinition>  
+    <fontDefinition
+          categoryId="org.eclipse.mylyn.wikitext.ui.presentation"
+          id="org.eclipse.mylyn.wikitext.ui.presentation.monospaceFont"
+          isEditable="true"
+          label="%fontDefinition.monospace.label"
+          value="Courier New-regular-11">
+       <description>
+          %fontDefinition.monospace.description
+       </description>
+       <fontValue
+       		os="linux"
+            value="Monospace-regular-11"/>
+       <fontValue
+       		os="macosx"
+            value="Courier-regular-11"/>
+    </fontDefinition>
  </extension>
 </plugin>

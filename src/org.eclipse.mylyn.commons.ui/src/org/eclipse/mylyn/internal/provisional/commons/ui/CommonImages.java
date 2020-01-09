@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -94,6 +94,12 @@ public class CommonImages {
 	public static final ImageDescriptor NOTIFICATION_CLOSE = create(T_EVIEW, "notification-close.gif"); //$NON-NLS-1$
 
 	public static final ImageDescriptor NOTIFICATION_CLOSE_HOVER = create(T_EVIEW, "notification-close-active.gif"); //$NON-NLS-1$
+
+	public static final ImageDescriptor NOTIFICATION_PREFERENCES_HOVER = create(T_EVIEW,
+			"notification-preferences-active.png"); //$NON-NLS-1$
+
+	public static final ImageDescriptor NOTIFICATION_PREFERENCES = create(T_EVIEW,
+			"notification-preferences-inactive.png"); //$NON-NLS-1$
 
 	// Date and synchronization overlays
 

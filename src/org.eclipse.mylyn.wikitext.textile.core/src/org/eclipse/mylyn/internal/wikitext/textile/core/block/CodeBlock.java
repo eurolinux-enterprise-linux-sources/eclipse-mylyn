@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2008 David Green and others.
+ * Copyright (c) 2007, 2010 David Green and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -61,8 +61,11 @@ public class CodeBlock extends Block {
 		}
 		++blockLineCount;
 
-		builder.characters(offset > 0 ? line.substring(offset) : line);
-		builder.characters("\n"); //$NON-NLS-1$
+		final String lineText = offset > 0 ? line.substring(offset) : line;
+		if (blockLineCount > 1 || lineText.trim().length() > 0) {
+			builder.characters(lineText);
+			builder.characters("\n"); //$NON-NLS-1$
+		}
 
 		return -1;
 	}

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -7,6 +7,7 @@
  *
  * Contributors:
  *     Tasktop Technologies - initial API and implementation
+ *     Frank Becker - improvements
  *******************************************************************************/
 
 package org.eclipse.mylyn.bugzilla.tests.ui;
@@ -22,14 +23,18 @@ import org.eclipse.mylyn.internal.bugzilla.core.BugzillaCorePlugin;
 import org.eclipse.mylyn.internal.tasks.core.TaskRepositoryManager;
 import org.eclipse.mylyn.internal.tasks.ui.TasksUiPlugin;
 import org.eclipse.mylyn.internal.tasks.ui.editors.TaskHyperlinkDetector;
+import org.eclipse.mylyn.tasks.core.ITask;
 import org.eclipse.mylyn.tasks.core.TaskRepository;
+import org.eclipse.mylyn.tasks.core.data.TaskAttribute;
 import org.eclipse.mylyn.tasks.ui.TaskHyperlink;
+import org.eclipse.mylyn.tasks.ui.TasksUi;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Shell;
 
 /**
  * @author Rob Elves
  * @author Terry Hon
+ * @author Frank Becker
  */
 public class BugzillaTaskHyperlinkDetectorTest extends TestCase {
 
@@ -37,25 +42,88 @@ public class BugzillaTaskHyperlinkDetectorTest extends TestCase {
 
 	private static final String DUPLICATE = "duplicate of " + DUPLICATE_NUMBER;
 
-	private final String TASK_FORMAT_1 = "task#1";
+	private static final String ATTACHMENT_NUMBER = "445566";
 
-	private final String TASK_FORMAT_2 = "task# 1";
+	private static final String ATTACHMENT_OLD = "Created an attachment (id=" + ATTACHMENT_NUMBER + ")";
 
-	private final String TASK_FORMAT_3 = "task1";
+	private static final String ATTACHMENT_NEW = "Created attachment" + ATTACHMENT_NUMBER;
 
-	private final String TASK_FORMAT_4 = "task #1";
+	private final String TASK_FORMAT_1 = "task#123";
 
-	private final String BUG_FORMAT_1 = "bug# 1";
+	private final String TASK_FORMAT_2 = "task# 123";
 
-	private final String BUG_FORMAT_2 = "bug # 1";
+	private final String TASK_FORMAT_3 = "task123";
 
-	private final String BUG_FORMAT_3 = "bug1";
+	private final String TASK_FORMAT_4 = "task #123";
 
-	private final String BUG_FORMAT_4 = "bug #1";
+	private final String BUG_FORMAT_1 = "bug# 123";
+
+	private final String BUG_FORMAT_2 = "bug # 123";
+
+	private final String BUG_FORMAT_3 = "bug123";
+
+	private final String BUG_FORMAT_4 = "bug #123";
 
 	private final String BUG_FORMAT_1_2 = "bug# 2";
 
-	//private BugzillaTaskHyperlinkDetector detector = new BugzillaTaskHyperlinkDetector();
+	private final String TASK_FORMAT_1_COMMENT_2 = "task#123 comment #44556677";
+
+	private final String TASK_FORMAT_2_COMMENT_2 = "task# 123 comment #44556677";
+
+	private final String TASK_FORMAT_3_COMMENT_2 = "task123 comment #44556677";
+
+	private final String TASK_FORMAT_4_COMMENT_2 = "task #123 comment #44556677";
+
+	private final String BUG_FORMAT_1_COMMENT_2 = "bug# 123 comment #44556677";
+
+	private final String BUG_FORMAT_2_COMMENT_2 = "bug # 123 comment #44556677";
+
+	private final String BUG_FORMAT_3_COMMENT_2 = "bug123 comment #44556677";
+
+	private final String BUG_FORMAT_4_COMMENT_2 = "bug #123 comment #44556677";
+
+	private final String TASK_FORMAT_1_COMMENT_3 = "task#123 comment#44556677";
+
+	private final String TASK_FORMAT_2_COMMENT_3 = "task# 123 comment#44556677";
+
+	private final String TASK_FORMAT_3_COMMENT_3 = "task123 comment#44556677";
+
+	private final String TASK_FORMAT_4_COMMENT_3 = "task #123 comment#44556677";
+
+	private final String BUG_FORMAT_1_COMMENT_3 = "bug# 123 comment#44556677";
+
+	private final String BUG_FORMAT_2_COMMENT_3 = "bug # 123 comment#44556677";
+
+	private final String BUG_FORMAT_3_COMMENT_3 = "bug123 comment#44556677";
+
+	private final String BUG_FORMAT_4_COMMENT_3 = "bug #123 comment#44556677";
+
+	private final String TASK_FORMAT_1_COMMENT_4 = "task#123 comment # 44556677";
+
+	private final String TASK_FORMAT_2_COMMENT_4 = "task# 123 comment # 44556677";
+
+	private final String TASK_FORMAT_3_COMMENT_4 = "task123 comment # 44556677";
+
+	private final String TASK_FORMAT_4_COMMENT_4 = "task #123 comment # 44556677";
+
+	private final String BUG_FORMAT_1_COMMENT_4 = "bug# 123 comment # 44556677";
+
+	private final String BUG_FORMAT_2_COMMENT_4 = "bug # 123 comment # 44556677";
+
+	private final String BUG_FORMAT_3_COMMENT_4 = "bug123 comment # 44556677";
+
+	private final String BUG_FORMAT_4_COMMENT_4 = "bug #123 comment # 44556677";
+
+	private final String COMMENT_1 = "comment#44556677";
+
+	private final String COMMENT_2 = "comment #44556677";
+
+	private final String COMMENT_3 = "comment # 44556677";
+
+	private final String COMMENT_4 = "comment# 44556677";
+
+	private final String COMMENT_5 = "comment 44556677";
+
 	private TaskHyperlinkDetector detector;
 
 	private TaskRepository repository1;
@@ -64,13 +132,19 @@ public class BugzillaTaskHyperlinkDetectorTest extends TestCase {
 
 	private TextViewer viewer;
 
-	private String[] formats;
+	private String[] commentFormats;
+
+	private String[] bugFormats;
+
+	private String[] bugCommentFormats;
 
 	private TaskRepositoryManager repositoryManager;
 
 	private Shell shell;
 
 	protected TaskRepository activeRepository;
+
+	protected ITask task;
 
 	@Override
 	protected void setUp() throws Exception {
@@ -80,11 +154,16 @@ public class BugzillaTaskHyperlinkDetectorTest extends TestCase {
 
 		repository1 = new TaskRepository(BugzillaCorePlugin.CONNECTOR_KIND, "repository_url1");
 		repository2 = new TaskRepository(BugzillaCorePlugin.CONNECTOR_KIND, "repository_url2");
-
+		task = TasksUi.getRepositoryModel().createTask(repository1, "123");
 		detector.setContext(new IAdaptable() {
 			@SuppressWarnings("rawtypes")
 			public Object getAdapter(Class adapter) {
-				return (adapter == TaskRepository.class) ? activeRepository : null;
+				if (adapter == TaskRepository.class) {
+					return activeRepository;
+				} else if (adapter == ITask.class) {
+					return task;
+				}
+				return null;
 			}
 		});
 		setRepository(repository1);
@@ -95,8 +174,16 @@ public class BugzillaTaskHyperlinkDetectorTest extends TestCase {
 		repositoryManager = TasksUiPlugin.getRepositoryManager();
 		repositoryManager.clearRepositories(TasksUiPlugin.getDefault().getRepositoriesFilePath());
 
-		formats = new String[] { TASK_FORMAT_1, TASK_FORMAT_2, TASK_FORMAT_3, TASK_FORMAT_4, BUG_FORMAT_1,
+		commentFormats = new String[] { COMMENT_1, COMMENT_2, COMMENT_3, COMMENT_4 };
+		bugFormats = new String[] { TASK_FORMAT_1, TASK_FORMAT_2, TASK_FORMAT_3, TASK_FORMAT_4, BUG_FORMAT_1,
 				BUG_FORMAT_2, BUG_FORMAT_3, BUG_FORMAT_4 };
+		bugCommentFormats = new String[] { TASK_FORMAT_1_COMMENT_2, TASK_FORMAT_2_COMMENT_2, TASK_FORMAT_3_COMMENT_2,
+				TASK_FORMAT_4_COMMENT_2, BUG_FORMAT_1_COMMENT_2, BUG_FORMAT_2_COMMENT_2, BUG_FORMAT_3_COMMENT_2,
+				BUG_FORMAT_4_COMMENT_2, TASK_FORMAT_1_COMMENT_3, TASK_FORMAT_2_COMMENT_3, TASK_FORMAT_3_COMMENT_3,
+				TASK_FORMAT_4_COMMENT_3, BUG_FORMAT_1_COMMENT_3, BUG_FORMAT_2_COMMENT_3, BUG_FORMAT_3_COMMENT_3,
+				BUG_FORMAT_4_COMMENT_3, TASK_FORMAT_1_COMMENT_4, TASK_FORMAT_2_COMMENT_4, TASK_FORMAT_3_COMMENT_4,
+				TASK_FORMAT_4_COMMENT_4, BUG_FORMAT_1_COMMENT_4, BUG_FORMAT_2_COMMENT_4, BUG_FORMAT_3_COMMENT_4,
+				BUG_FORMAT_4_COMMENT_4 };
 	}
 
 	private void setRepository(final TaskRepository repository) {
@@ -114,55 +201,195 @@ public class BugzillaTaskHyperlinkDetectorTest extends TestCase {
 	}
 
 	public void testBeginningWithSpecialChars() {
-		for (String format : formats) {
+		for (String format : bugFormats) {
 			String testString = "First line\n:" + format + " is at the beginning";
 			viewer.setDocument(new Document(testString));
 			Region region = new Region(0, testString.length());
 			IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
 			assertNotNull(links);
 			assertEquals(1, links.length);
-			assertEquals(testString.indexOf(format), links[0].getHyperlinkRegion().getOffset());
+			assertTrue(links[0] instanceof TaskHyperlink);
+			TaskHyperlink taskLink = (TaskHyperlink) links[0];
+			assertEquals("123", taskLink.getTaskId());
+			assertEquals(testString.indexOf(format), taskLink.getHyperlinkRegion().getOffset());
+			Object comment = taskLink.getSelection();
+			assertNull(comment);
+		}
+		for (String format : bugCommentFormats) {
+			String testString = "First line\n:" + format + " is at the beginning";
+			viewer.setDocument(new Document(testString));
+			Region region = new Region(0, testString.length());
+			IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
+			assertNotNull(links);
+			assertEquals(1, links.length);
+			assertTrue(links[0] instanceof TaskHyperlink);
+			TaskHyperlink taskLink = (TaskHyperlink) links[0];
+			assertEquals("123", taskLink.getTaskId());
+			assertEquals(testString.indexOf(format), taskLink.getHyperlinkRegion().getOffset());
+			Object comment = taskLink.getSelection();
+			assertNotNull(comment);
+			assertEquals(TaskAttribute.PREFIX_COMMENT + "44556677", comment);
+		}
+		for (String format : commentFormats) {
+			String testString = "First line\n:" + format + " is at the beginning";
+			viewer.setDocument(new Document(testString));
+			Region region = new Region(0, testString.length());
+			IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
+			assertNotNull(links);
+			assertEquals(1, links.length);
+			assertTrue(links[0] instanceof TaskHyperlink);
+			TaskHyperlink taskLink = (TaskHyperlink) links[0];
+			assertEquals("123", taskLink.getTaskId());
+			assertEquals(testString.indexOf(format), taskLink.getHyperlinkRegion().getOffset());
+			Object comment = taskLink.getSelection();
+			assertNotNull(comment);
+			assertEquals(TaskAttribute.PREFIX_COMMENT + "44556677", comment);
 		}
 	}
 
 	public void testBeginningOfSecondLine() {
-		for (String format : formats) {
+		for (String format : bugFormats) {
 			String testString = "First line\n" + format + " is at the beginning";
 			viewer.setDocument(new Document(testString));
 			Region region = new Region(0, testString.length());
 			IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
 			assertNotNull(links);
 			assertEquals(1, links.length);
-			assertEquals(testString.indexOf(format), links[0].getHyperlinkRegion().getOffset());
+			assertTrue(links[0] instanceof TaskHyperlink);
+			TaskHyperlink taskLink = (TaskHyperlink) links[0];
+			assertEquals("123", taskLink.getTaskId());
+			assertEquals(testString.indexOf(format), taskLink.getHyperlinkRegion().getOffset());
+			Object comment = taskLink.getSelection();
+			assertNull(comment);
+		}
+		for (String format : bugCommentFormats) {
+			String testString = "First line\n" + format + " is at the beginning";
+			viewer.setDocument(new Document(testString));
+			Region region = new Region(0, testString.length());
+			IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
+			assertNotNull(links);
+			assertEquals(1, links.length);
+			assertTrue(links[0] instanceof TaskHyperlink);
+			TaskHyperlink taskLink = (TaskHyperlink) links[0];
+			assertEquals("123", taskLink.getTaskId());
+			assertEquals(testString.indexOf(format), taskLink.getHyperlinkRegion().getOffset());
+			Object comment = taskLink.getSelection();
+			assertNotNull(comment);
+			assertEquals(TaskAttribute.PREFIX_COMMENT + "44556677", comment);
+		}
+		for (String format : commentFormats) {
+			String testString = "First line\n" + format + " is at the beginning";
+			viewer.setDocument(new Document(testString));
+			Region region = new Region(0, testString.length());
+			IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
+			assertNotNull(links);
+			assertEquals(1, links.length);
+			assertTrue(links[0] instanceof TaskHyperlink);
+			TaskHyperlink taskLink = (TaskHyperlink) links[0];
+			assertEquals("123", taskLink.getTaskId());
+			assertEquals(testString.indexOf(format), taskLink.getHyperlinkRegion().getOffset());
+			Object comment = taskLink.getSelection();
+			assertNotNull(comment);
+			assertEquals(TaskAttribute.PREFIX_COMMENT + "44556677", comment);
 		}
 	}
 
 	public void testBeginningOfSecondLineWithisWhitespace() {
-		for (String format : formats) {
+		for (String format : bugFormats) {
 			String testString = "First line\n \t " + format + " is at the beginning";
 			viewer.setDocument(new Document(testString));
 			Region region = new Region(0, testString.length());
 			IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
 			assertNotNull(links);
 			assertEquals(1, links.length);
-			assertEquals(testString.indexOf(format), links[0].getHyperlinkRegion().getOffset());
+			assertTrue(links[0] instanceof TaskHyperlink);
+			TaskHyperlink taskLink = (TaskHyperlink) links[0];
+			assertEquals("123", taskLink.getTaskId());
+			assertEquals(testString.indexOf(format), taskLink.getHyperlinkRegion().getOffset());
+			Object comment = taskLink.getSelection();
+			assertNull(comment);
+		}
+		for (String format : bugCommentFormats) {
+			String testString = "First line\n \t " + format + " is at the beginning";
+			viewer.setDocument(new Document(testString));
+			Region region = new Region(0, testString.length());
+			IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
+			assertNotNull(links);
+			assertEquals(1, links.length);
+			assertTrue(links[0] instanceof TaskHyperlink);
+			TaskHyperlink taskLink = (TaskHyperlink) links[0];
+			assertEquals("123", taskLink.getTaskId());
+			assertEquals(testString.indexOf(format), taskLink.getHyperlinkRegion().getOffset());
+			Object comment = taskLink.getSelection();
+			assertNotNull(format, comment);
+			assertEquals(TaskAttribute.PREFIX_COMMENT + "44556677", comment);
+		}
+		for (String format : commentFormats) {
+			String testString = "First line\n \t " + format + " is at the beginning";
+			viewer.setDocument(new Document(testString));
+			Region region = new Region(0, testString.length());
+			IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
+			assertNotNull(links);
+			assertEquals(1, links.length);
+			assertTrue(links[0] instanceof TaskHyperlink);
+			TaskHyperlink taskLink = (TaskHyperlink) links[0];
+			assertEquals("123", taskLink.getTaskId());
+			assertEquals(testString.indexOf(format), taskLink.getHyperlinkRegion().getOffset());
+			Object comment = taskLink.getSelection();
+			assertNotNull(comment);
+			assertEquals(TaskAttribute.PREFIX_COMMENT + "44556677", comment);
 		}
 	}
 
 	public void testBeginning() {
-		for (String format : formats) {
+		for (String format : bugFormats) {
 			String testString = format + " is at the beginning";
 			viewer.setDocument(new Document(testString));
 			Region region = new Region(0, testString.length());
 			IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
 			assertNotNull(links);
 			assertEquals(1, links.length);
-			assertEquals(testString.indexOf(format), links[0].getHyperlinkRegion().getOffset());
+			assertTrue(links[0] instanceof TaskHyperlink);
+			TaskHyperlink taskLink = (TaskHyperlink) links[0];
+			assertEquals("123", taskLink.getTaskId());
+			assertEquals(testString.indexOf(format), taskLink.getHyperlinkRegion().getOffset());
+			Object comment = taskLink.getSelection();
+			assertNull(comment);
+		}
+		for (String format : bugCommentFormats) {
+			String testString = format + " is at the beginning";
+			viewer.setDocument(new Document(testString));
+			Region region = new Region(0, testString.length());
+			IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
+			assertNotNull(links);
+			assertEquals(1, links.length);
+			assertTrue(links[0] instanceof TaskHyperlink);
+			TaskHyperlink taskLink = (TaskHyperlink) links[0];
+			assertEquals("123", taskLink.getTaskId());
+			assertEquals(testString.indexOf(format), taskLink.getHyperlinkRegion().getOffset());
+			Object comment = taskLink.getSelection();
+			assertNotNull(comment);
+			assertEquals(TaskAttribute.PREFIX_COMMENT + "44556677", comment);
+		}
+		for (String format : commentFormats) {
+			String testString = format + " is at the beginning";
+			viewer.setDocument(new Document(testString));
+			Region region = new Region(0, testString.length());
+			IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
+			assertNotNull(links);
+			assertEquals(1, links.length);
+			assertTrue(links[0] instanceof TaskHyperlink);
+			TaskHyperlink taskLink = (TaskHyperlink) links[0];
+			assertEquals("123", taskLink.getTaskId());
+			assertEquals(testString.indexOf(format), taskLink.getHyperlinkRegion().getOffset());
+			Object comment = taskLink.getSelection();
+			assertNotNull(comment);
+			assertEquals(TaskAttribute.PREFIX_COMMENT + "44556677", comment);
 		}
 	}
 
 	public void testEnd() {
-		for (String format : formats) {
+		for (String format : bugFormats) {
 			String testString = "is ends with " + format;
 			viewer.setDocument(new Document(testString));
 			int i = testString.indexOf(format);
@@ -170,12 +397,48 @@ public class BugzillaTaskHyperlinkDetectorTest extends TestCase {
 			IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
 			assertNotNull(links);
 			assertEquals(1, links.length);
-			assertEquals(i, links[0].getHyperlinkRegion().getOffset());
+			assertTrue(links[0] instanceof TaskHyperlink);
+			TaskHyperlink taskLink = (TaskHyperlink) links[0];
+			assertEquals("123", taskLink.getTaskId());
+			assertEquals(testString.indexOf(format), taskLink.getHyperlinkRegion().getOffset());
+			Object comment = taskLink.getSelection();
+			assertNull(comment);
+		}
+		for (String format : bugCommentFormats) {
+			String testString = "is ends with " + format;
+			viewer.setDocument(new Document(testString));
+			int i = testString.indexOf(format);
+			Region region = new Region(i, testString.length() - i);
+			IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
+			assertNotNull(links);
+			assertEquals(1, links.length);
+			assertTrue(links[0] instanceof TaskHyperlink);
+			TaskHyperlink taskLink = (TaskHyperlink) links[0];
+			assertEquals("123", taskLink.getTaskId());
+			assertEquals(testString.indexOf(format), taskLink.getHyperlinkRegion().getOffset());
+			Object comment = taskLink.getSelection();
+			assertNotNull(comment);
+			assertEquals(TaskAttribute.PREFIX_COMMENT + "44556677", comment);
+		}
+		for (String format : commentFormats) {
+			String testString = "is ends with " + format;
+			viewer.setDocument(new Document(testString));
+			Region region = new Region(0, testString.length());
+			IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
+			assertNotNull(links);
+			assertEquals(1, links.length);
+			assertTrue(links[0] instanceof TaskHyperlink);
+			TaskHyperlink taskLink = (TaskHyperlink) links[0];
+			assertEquals("123", taskLink.getTaskId());
+			assertEquals(testString.indexOf(format), taskLink.getHyperlinkRegion().getOffset());
+			Object comment = taskLink.getSelection();
+			assertNotNull(comment);
+			assertEquals(TaskAttribute.PREFIX_COMMENT + "44556677", comment);
 		}
 	}
 
 	public void testMiddle() {
-		for (String format : formats) {
+		for (String format : bugFormats) {
 			String testString = "is a " + format + " in the middle";
 			viewer.setDocument(new Document(testString));
 			int i = testString.indexOf(format);
@@ -183,7 +446,42 @@ public class BugzillaTaskHyperlinkDetectorTest extends TestCase {
 			IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
 			assertNotNull(links);
 			assertEquals(1, links.length);
-			assertEquals(testString.indexOf(format), links[0].getHyperlinkRegion().getOffset());
+			assertTrue(links[0] instanceof TaskHyperlink);
+			TaskHyperlink taskLink = (TaskHyperlink) links[0];
+			assertEquals("123", taskLink.getTaskId());
+			assertEquals(testString.indexOf(format), taskLink.getHyperlinkRegion().getOffset());
+			Object comment = taskLink.getSelection();
+			assertNull(comment);
+		}
+		for (String format : bugCommentFormats) {
+			String testString = "is a " + format + " in the middle";
+			viewer.setDocument(new Document(testString));
+			Region region = new Region(0, testString.length());
+			IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
+			assertNotNull(links);
+			assertEquals(1, links.length);
+			assertTrue(links[0] instanceof TaskHyperlink);
+			TaskHyperlink taskLink = (TaskHyperlink) links[0];
+			assertEquals("123", taskLink.getTaskId());
+			assertEquals(testString.indexOf(format), taskLink.getHyperlinkRegion().getOffset());
+			Object comment = taskLink.getSelection();
+			assertNotNull(comment);
+			assertEquals(TaskAttribute.PREFIX_COMMENT + "44556677", comment);
+		}
+		for (String format : commentFormats) {
+			String testString = "is a " + format + " in the middle";
+			viewer.setDocument(new Document(testString));
+			Region region = new Region(0, testString.length());
+			IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
+			assertNotNull(links);
+			assertEquals(1, links.length);
+			assertTrue(links[0] instanceof TaskHyperlink);
+			TaskHyperlink taskLink = (TaskHyperlink) links[0];
+			assertEquals("123", taskLink.getTaskId());
+			assertEquals(testString.indexOf(format), taskLink.getHyperlinkRegion().getOffset());
+			Object comment = taskLink.getSelection();
+			assertNotNull(comment);
+			assertEquals(TaskAttribute.PREFIX_COMMENT + "44556677", comment);
 		}
 	}
 
@@ -217,7 +515,7 @@ public class BugzillaTaskHyperlinkDetectorTest extends TestCase {
 		IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
 		assertNotNull(links);
 		assertEquals(1, links.length);
-		assertEquals(testString.indexOf(DUPLICATE_NUMBER), links[0].getHyperlinkRegion().getOffset());
+		assertEquals(testString.indexOf(DUPLICATE), links[0].getHyperlinkRegion().getOffset());
 	}
 
 	public void testNoRepositoryInViewNoRepositoryInManager() {
@@ -320,6 +618,37 @@ public class BugzillaTaskHyperlinkDetectorTest extends TestCase {
 		assertEquals(1, links.length);
 		assertTrue(links[0] instanceof TaskHyperlink);
 		assertEquals("345", ((TaskHyperlink) links[0]).getTaskId());
+	}
+
+	public void testAttachmentOld() {
+		String testString = ATTACHMENT_OLD;
+		viewer.setDocument(new Document(testString));
+		Region region = new Region(0, testString.length());
+		IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
+		assertNotNull(links);
+		assertEquals(1, links.length);
+		assertEquals(testString.indexOf(ATTACHMENT_OLD), links[0].getHyperlinkRegion().getOffset());
+	}
+
+	public void testAttachmentNew() {
+		String testString = ATTACHMENT_NEW;
+		viewer.setDocument(new Document(testString));
+		Region region = new Region(0, testString.length());
+		IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
+		assertNotNull(links);
+		assertEquals(1, links.length);
+		assertEquals(testString.indexOf(ATTACHMENT_NEW), links[0].getHyperlinkRegion().getOffset());
+	}
+
+	public void testCommentLotsOfWhitespace() {
+		String testString = "bug 123     d bug 245 comment 1";
+		viewer.setDocument(new Document(testString));
+		Region region = new Region(0, testString.length());
+		IHyperlink[] links = detector.detectHyperlinks(viewer, region, false);
+		assertNotNull(links);
+		assertEquals(2, links.length);
+		assertEquals(testString.indexOf("bug 123"), links[0].getHyperlinkRegion().getOffset());
+		assertEquals(testString.indexOf("bug 245 comment 1"), links[1].getHyperlinkRegion().getOffset());
 	}
 
 }

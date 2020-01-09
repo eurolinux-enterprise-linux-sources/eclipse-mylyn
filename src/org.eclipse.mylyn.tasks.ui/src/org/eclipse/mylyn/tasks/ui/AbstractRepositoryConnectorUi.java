@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -32,9 +32,11 @@ import org.eclipse.mylyn.tasks.core.ITaskMapping;
 import org.eclipse.mylyn.tasks.core.TaskRepository;
 import org.eclipse.mylyn.tasks.core.data.TaskAttachmentModel;
 import org.eclipse.mylyn.tasks.ui.editors.TaskEditor;
+import org.eclipse.mylyn.tasks.ui.editors.TaskEditorInput;
 import org.eclipse.mylyn.tasks.ui.wizards.ITaskRepositoryPage;
 import org.eclipse.mylyn.tasks.ui.wizards.ITaskSearchPage;
 import org.eclipse.mylyn.tasks.ui.wizards.TaskAttachmentPage;
+import org.eclipse.ui.IEditorInput;
 
 /**
  * Extend to provide connector-specific UI extensions. TODO: consider refactoring into extension points
@@ -80,6 +82,22 @@ public abstract class AbstractRepositoryConnectorUi {
 	 */
 	public String getTaskEditorId(ITask repositoryTask) {
 		return TaskEditor.ID_EDITOR;
+	}
+
+	/**
+	 * Default implementation returns the standard {@link org.eclipse.mylyn.tasks.ui.editors.TaskEditorInput}. Override
+	 * this method to return a custom task editor input. The connector author must ensure the corresponding editor is
+	 * capable of opening this editor input and will likely need to override
+	 * AbstractRepositoryConnectorUi.getTaskEditorId() as well.
+	 * 
+	 * @param repository
+	 *            - task repository for which to construct an editor
+	 * @param task
+	 *            - the task to edit
+	 * @since 3.4
+	 */
+	public IEditorInput getTaskEditorInput(TaskRepository repository, ITask task) {
+		return new TaskEditorInput(repository, task);
 	}
 
 	public abstract boolean hasSearchPage();
@@ -221,7 +239,9 @@ public abstract class AbstractRepositoryConnectorUi {
 	 *            the offset of <code>text</code>
 	 * @return an array of hyperlinks, or null if no hyperlinks were found
 	 * @since 2.0
+	 * @deprecated use {@link #findHyperlinks(TaskRepository, ITask, String, int, int)} instead
 	 */
+	@Deprecated
 	public IHyperlink[] findHyperlinks(TaskRepository repository, String text, int index, int textOffset) {
 		return null;
 	}
@@ -248,4 +268,25 @@ public abstract class AbstractRepositoryConnectorUi {
 		return new TaskAttachmentPage(model);
 	}
 
+	/**
+	 * Returns an array of hyperlinks that link to tasks within <code>text</code>. If <code>index</code> is != -1
+	 * clients may limit the results to hyperlinks found at <code>index</code>. It is legal for clients to always return
+	 * all results.
+	 * 
+	 * @param repository
+	 *            the task repository, never <code>null</code>
+	 * @param task
+	 *            the task, can be <code>null</code>
+	 * @param text
+	 *            the line of text
+	 * @param index
+	 *            the index within <code>text</code>, if -1 return all hyperlinks found in text
+	 * @param textOffset
+	 *            the offset of <code>text</code>
+	 * @return an array of hyperlinks, or null if no hyperlinks were found
+	 * @since 3.4
+	 */
+	public IHyperlink[] findHyperlinks(TaskRepository repository, ITask task, String text, int index, int textOffset) {
+		return findHyperlinks(repository, text, index, textOffset);
+	}
 }

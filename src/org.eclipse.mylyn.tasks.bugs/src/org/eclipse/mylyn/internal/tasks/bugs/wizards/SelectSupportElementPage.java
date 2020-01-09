@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -35,11 +35,11 @@ import org.eclipse.mylyn.internal.provisional.commons.ui.CommonImages;
 import org.eclipse.mylyn.internal.provisional.commons.ui.CommonThemes;
 import org.eclipse.mylyn.internal.provisional.commons.ui.GradientCanvas;
 import org.eclipse.mylyn.internal.provisional.commons.ui.WorkbenchUtil;
-import org.eclipse.mylyn.internal.provisional.tasks.bugs.IProvider;
 import org.eclipse.mylyn.internal.tasks.bugs.AbstractSupportElement;
 import org.eclipse.mylyn.internal.tasks.bugs.SupportCategory;
 import org.eclipse.mylyn.internal.tasks.bugs.SupportProduct;
 import org.eclipse.mylyn.internal.tasks.bugs.SupportProvider;
+import org.eclipse.mylyn.tasks.bugs.IProvider;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Image;

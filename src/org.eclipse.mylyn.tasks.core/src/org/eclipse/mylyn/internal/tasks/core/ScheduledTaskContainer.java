@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -125,49 +125,114 @@ public class ScheduledTaskContainer extends AbstractTaskContainer {
 
 		Set<ITask> children = new HashSet<ITask>();
 
+		Calendar cal = TaskActivityUtil.getCalendar();
+
 		// All tasks scheduled for this date range
 		for (ITask task : activityManager.getScheduledTasks(range)) {
-			if (!task.isCompleted()
-					|| (task.isCompleted() && TaskActivityUtil.getDayOf(task.getCompletionDate()).isPresent())) {
-				children.add(task);
+			if (!task.isCompleted() || isCompletedToday(task)) {
+
+				if (isDueBeforeScheduled(task) && activityManager.isOwnedByUser(task)) {
+					continue;
+				}
+
+				if (isThisWeekBin() && isScheduledForAWeek(task)) {
+					// is due this week
+					if (task.getDueDate() != null) {
+						cal.setTime(task.getDueDate());
+						if (range.includes(cal) && activityManager.isOwnedByUser(task)) {
+							continue;
+						}
+					}
+
+					addChild(children, task);
+				}
+
+				addChild(children, task);
 			}
 		}
 
-		// Add due tasks if not the This Week container
-		if (!(range instanceof WeekDateRange && ((WeekDateRange) range).isPresent())) {
-			for (ITask task : activityManager.getDueTasks(range.getStartDate(), range.getEndDate())) {
+		// Add due tasks if not the This Week container, and not scheduled for earlier date
+		if (!TaskActivityUtil.getCurrentWeek().equals(range) && !TaskActivityUtil.getNextWeek().equals(range)) {
+			for (ITask task : getTasksDueThisWeek()) {
+				if (isScheduledBeforeDue(task)) {
+					continue;
+				}
 				if (activityManager.isOwnedByUser(task)) {
-					children.add(task);
+					addChild(children, task);
 				}
 			}
 		}
 
 		// All over due/scheduled tasks are present in the Today folder
-		if ((range instanceof DayDateRange) && ((DayDateRange) range).isPresent()) {
+		if (isTodayBin()) {
 			for (ITask task : activityManager.getOverScheduledTasks()) {
-				if (task instanceof AbstractTask
-						&& !(((AbstractTask) task).getScheduledForDate() instanceof WeekDateRange)) {
-					children.add(task);
+				if (isScheduledForADay(task)) {
+					addChild(children, task);
 				}
 			}
-			children.addAll(activityManager.getOverDueTasks());
+			for (ITask task : activityManager.getOverDueTasks()) {
+				addChild(children, task);
+			}
+
 			// if not scheduled or due in future, and is active, place in today bin
 			ITask activeTask = activityManager.getActiveTask();
 			if (activeTask != null && !children.contains(activeTask)) {
-				children.add(activeTask);
+				addChild(children, activeTask);
 			}
 		}
 
 		if (range instanceof WeekDateRange && ((WeekDateRange) range).isThisWeek()) {
 			for (ITask task : activityManager.getOverScheduledTasks()) {
-				if (task instanceof AbstractTask
-						&& ((AbstractTask) task).getScheduledForDate() instanceof WeekDateRange) {
-					children.add(task);
+				if (isScheduledForAWeek(task)) {
+					addChild(children, task);
 				}
 			}
 		}
 
 		return children;
+	}
+
+	private boolean isTodayBin() {
+		return range instanceof DayDateRange && ((DayDateRange) range).isPresent();
+	}
+
+	private boolean isThisWeekBin() {
+
+		return range instanceof WeekDateRange && ((WeekDateRange) range).isThisWeek();
+	}
+
+	private Set<ITask> getTasksDueThisWeek() {
+		return activityManager.getDueTasks(range.getStartDate(), range.getEndDate());
+	}
+
+	private boolean isScheduledForAWeek(ITask task) {
+		return task instanceof AbstractTask && ((AbstractTask) task).getScheduledForDate() instanceof WeekDateRange;
+	}
+
+	public boolean isDueBeforeScheduled(ITask task) {
+		return task.getDueDate() != null
+				&& task.getDueDate().before(((AbstractTask) task).getScheduledForDate().getEndDate().getTime());
+	}
+
+	private boolean isScheduledForADay(ITask task) {
+		return task instanceof AbstractTask && !(((AbstractTask) task).getScheduledForDate() instanceof WeekDateRange);
+	}
+
+	private boolean isScheduledBeforeDue(ITask task) {
+		return ((AbstractTask) task).getScheduledForDate() != null
+				&& ((AbstractTask) task).getScheduledForDate().before(range.getStartDate());
+	}
+
+	private boolean isCompletedToday(ITask task) {
+		return (task.isCompleted() && TaskActivityUtil.getDayOf(task.getCompletionDate()).isPresent());
+	}
+
+	private void addChild(Set<ITask> collection, ITask task) {
+//		if (task.getSynchronizationState().isOutgoing()) {
+//			return;
+//		}
+
+		collection.add(task);
 	}
 
 	@Override

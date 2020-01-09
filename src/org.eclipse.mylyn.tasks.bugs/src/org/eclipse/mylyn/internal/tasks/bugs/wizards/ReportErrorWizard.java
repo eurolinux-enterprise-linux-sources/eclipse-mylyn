@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -53,6 +53,13 @@ public class ReportErrorWizard extends Wizard {
 				((AttributeTaskMapper) request.getDefaultContribution()).getAttributes());
 		newTaskPage = new NewTaskPage(ITaskRepositoryFilter.CAN_CREATE_NEW_TASK, defaultMapping);
 		addPage(newTaskPage);
+	}
+
+	@Override
+	public boolean canFinish() {
+		// newTaskPage is a selection page, therefore it's only valid to finish early if the selected node does not delegate to another wizard
+		return reportErrorPage.getSelectedContribution() != null || newTaskPage.canFinish()
+				&& newTaskPage.getNextPage() == null;
 	}
 
 	@Override

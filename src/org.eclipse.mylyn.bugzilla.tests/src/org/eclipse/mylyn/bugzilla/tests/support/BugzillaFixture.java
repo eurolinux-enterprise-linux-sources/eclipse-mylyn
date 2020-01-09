@@ -17,7 +17,6 @@ import java.util.Collections;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.NullProgressMonitor;
-import org.eclipse.mylyn.bugzilla.tests.BugzillaTestConstants;
 import org.eclipse.mylyn.commons.net.AbstractWebLocation;
 import org.eclipse.mylyn.commons.net.AuthenticationType;
 import org.eclipse.mylyn.commons.net.WebLocation;
@@ -26,6 +25,7 @@ import org.eclipse.mylyn.internal.bugzilla.core.BugzillaClient;
 import org.eclipse.mylyn.internal.bugzilla.core.BugzillaClientManager;
 import org.eclipse.mylyn.internal.bugzilla.core.BugzillaCorePlugin;
 import org.eclipse.mylyn.internal.bugzilla.core.BugzillaRepositoryConnector;
+import org.eclipse.mylyn.internal.bugzilla.core.BugzillaVersion;
 import org.eclipse.mylyn.tasks.core.RepositoryResponse;
 import org.eclipse.mylyn.tasks.core.TaskRepository;
 import org.eclipse.mylyn.tasks.core.data.AbstractTaskDataHandler;
@@ -44,53 +44,93 @@ import org.eclipse.mylyn.tests.util.TestUtil.PrivilegeLevel;
  */
 public class BugzillaFixture extends TestFixture {
 
+	public static final String SERVER = System.getProperty("mylyn.bugzilla.server", "mylyn.eclipse.org");
+
+	public static final String TEST_BUGZILLA_30_URL = getServerUrl("bugs30");
+
+	public static final String TEST_BUGZILLA_218_URL = getServerUrl("bugs218");
+
+	public static final String TEST_BUGZILLA_220_URL = getServerUrl("bugs220");
+
+	public static final String TEST_BUGZILLA_2201_URL = getServerUrl("bugs220");
+
+	public static final String TEST_BUGZILLA_222_URL = getServerUrl("bugs222");
+
+	public static final String TEST_BUGZILLA_303_URL = getServerUrl("bugs30");
+
+	public static final String TEST_BUGZILLA_32_URL = getServerUrl("bugs32");
+
+	public static final String TEST_BUGZILLA_322_URL = getServerUrl("bugs322");
+
+	public static final String TEST_BUGZILLA_323_URL = getServerUrl("bugs323");
+
+	public static final String TEST_BUGZILLA_34_URL = getServerUrl("bugs34");
+
+	public static final String TEST_BUGZILLA_36_URL = getServerUrl("bugs36");
+
+	public static final String TEST_BUGZILLA_HEAD_URL = getServerUrl("bugshead");
+
+	public static final String TEST_BUGZILLA_LATEST_URL = TEST_BUGZILLA_36_URL;
+
+	private static final String getServerUrl(String version) {
+		return "http://" + SERVER + "/" + version;
+	}
+
 	private static BugzillaFixture current;
 
 	/**
 	 * @deprecated not supported any more
 	 */
 	@Deprecated
-	public static BugzillaFixture BUGS_2_18 = new BugzillaFixture(BugzillaTestConstants.TEST_BUGZILLA_218_URL,//
-			"2.18.6", "");
-
-	public static BugzillaFixture BUGS_2_20 = new BugzillaFixture(BugzillaTestConstants.TEST_BUGZILLA_220_URL, //
-			"2.20.7", "");
-
-	public static BugzillaFixture BUGS_2_22 = new BugzillaFixture(BugzillaTestConstants.TEST_BUGZILLA_222_URL, //
+	public static BugzillaFixture BUGS_2_22 = new BugzillaFixture(BugzillaFixture.TEST_BUGZILLA_222_URL, //
 			"2.22.7", "");
 
-	public static BugzillaFixture BUGS_3_0 = new BugzillaFixture(BugzillaTestConstants.TEST_BUGZILLA_30_URL, //
-			"3.0.8", "");
+	public static BugzillaFixture BUGS_3_0 = new BugzillaFixture(BugzillaFixture.TEST_BUGZILLA_30_URL, //
+			"3.0.11", "");
 
-	public static BugzillaFixture BUGS_3_2 = new BugzillaFixture(BugzillaTestConstants.TEST_BUGZILLA_32_URL, //
-			"3.2.4", "");
+	public static BugzillaFixture BUGS_3_2 = new BugzillaFixture(BugzillaFixture.TEST_BUGZILLA_32_URL, //
+			"3.2.7", "");
 
-	/**
-	 * @deprecated use latest 3.2 -> BUGS_3_2
-	 */
-	@Deprecated
-	public static BugzillaFixture BUGS_3_2_2 = new BugzillaFixture(BugzillaTestConstants.TEST_BUGZILLA_322_URL, //
-			"3.2.2", "");
+	public static BugzillaFixture BUGS_3_4 = new BugzillaFixture(BugzillaFixture.TEST_BUGZILLA_34_URL, //
+			"3.4.7", "");
 
-	/**
-	 * @deprecated use latest 3.2 -> BUGS_3_2
-	 */
-	@Deprecated
-	public static BugzillaFixture BUGS_3_2_3 = new BugzillaFixture(BugzillaTestConstants.TEST_BUGZILLA_323_URL, //
-			"3.2.3", "");
+	public static BugzillaFixture BUGS_3_6 = new BugzillaFixture(BugzillaFixture.TEST_BUGZILLA_36_URL, //
+			"3.6.1", "");
 
-	public static BugzillaFixture BUGS_3_4 = new BugzillaFixture(BugzillaTestConstants.TEST_BUGZILLA_34_URL, //
-			"3.4.4", "");
+	public static BugzillaFixture BUGS_3_6_CUSTOM_WF = new BugzillaFixture(BugzillaFixture.TEST_BUGZILLA_36_URL
+			+ "-custom-wf", "3.6.1", "Custom Workflow");
 
-	public static BugzillaFixture BUGS_HEAD = new BugzillaFixture(BugzillaTestConstants.TEST_BUGZILLA_HEAD_URL, //
-			"3.5.2+", "");
+	public static BugzillaFixture BUGS_3_6_CUSTOM_WF_AND_STATUS = new BugzillaFixture(
+			BugzillaFixture.TEST_BUGZILLA_36_URL + "-custom-wf-and-status", "3.6.1", "Custom Workflow and Status");
 
-	public static BugzillaFixture DEFAULT = BUGS_3_4;
+	public static BugzillaFixture BUGS_3_6_XML_RPC_DISABLED = new BugzillaFixture(BugzillaFixture.TEST_BUGZILLA_36_URL
+			+ "-xml-rpc-disabled", "3.6.1", "XML-RPC disabled");
 
-	public static final BugzillaFixture[] ALL = new BugzillaFixture[] { /*BUGS_2_20, BUGS_2_22, BUGS_3_0, BUGS_3_2, */
-	BUGS_3_4, BUGS_HEAD };
+	public static BugzillaFixture BUGS_HEAD = new BugzillaFixture(BugzillaFixture.TEST_BUGZILLA_HEAD_URL, //
+			"3.7.1+", "");
+
+	public static BugzillaFixture DEFAULT = BUGS_3_6;
+
+	public static final BugzillaFixture[] ALL = new BugzillaFixture[] { BUGS_2_22, BUGS_3_0, BUGS_3_2, BUGS_3_4,
+			BUGS_3_6, BUGS_HEAD };
+
+	public static final BugzillaFixture[] ONLY_3_6_SPECIFIC = new BugzillaFixture[] { BUGS_3_6,
+			BUGS_3_6_XML_RPC_DISABLED, BUGS_3_6_CUSTOM_WF, BUGS_3_6_CUSTOM_WF_AND_STATUS };
 
 	private final String version;
+
+	private final BugzillaVersion bugzillaVersion;
+
+	public BugzillaFixture(String url, String version, String info) {
+		super(BugzillaCorePlugin.CONNECTOR_KIND, url);
+		this.version = version;
+		this.bugzillaVersion = new BugzillaVersion(version);
+		setInfo("Bugzilla", version, info);
+	}
+
+	public BugzillaVersion getBugzillaVersion() {
+		return bugzillaVersion;
+	}
 
 	public static void cleanup010() throws Exception {
 	}
@@ -104,12 +144,6 @@ public class BugzillaFixture extends TestFixture {
 
 	public static BugzillaFixture current() {
 		return current(DEFAULT);
-	}
-
-	public BugzillaFixture(String url, String version, String info) {
-		super(BugzillaCorePlugin.CONNECTOR_KIND, url);
-		this.version = version;
-		setInfo("Bugzilla", version, info);
 	}
 
 	@Override

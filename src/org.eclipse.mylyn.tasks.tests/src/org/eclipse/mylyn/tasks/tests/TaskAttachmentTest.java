@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -16,6 +16,7 @@ import java.io.RandomAccessFile;
 
 import junit.framework.TestCase;
 
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.mylyn.internal.tasks.core.TaskAttachment;
 import org.eclipse.mylyn.internal.tasks.core.TaskRepositoryManager;
@@ -56,7 +57,7 @@ public class TaskAttachmentTest extends TestCase {
 
 		manager = TasksUiPlugin.getRepositoryManager();
 
-		repository = new TaskRepository(MockRepositoryConnector.REPOSITORY_KIND, MockRepositoryConnector.REPOSITORY_URL);
+		repository = new TaskRepository(MockRepositoryConnector.CONNECTOR_KIND, MockRepositoryConnector.REPOSITORY_URL);
 		manager.addRepository(repository);
 
 		attachmentHandler = new MockAttachmentHandler();
@@ -65,7 +66,7 @@ public class TaskAttachmentTest extends TestCase {
 		connector.setTaskAttachmentHandler(attachmentHandler);
 		manager.addRepositoryConnector(connector);
 
-		TaskData taskData = new TaskData(new TaskAttributeMapper(repository), MockRepositoryConnector.REPOSITORY_KIND,
+		TaskData taskData = new TaskData(new TaskAttributeMapper(repository), MockRepositoryConnector.CONNECTOR_KIND,
 				MockRepositoryConnector.REPOSITORY_URL, "1");
 		attachment = new TaskAttachment(repository, new MockTask("1"), taskData.getRoot().createAttribute("attachment"));
 	}
@@ -109,4 +110,19 @@ public class TaskAttachmentTest extends TestCase {
 		}
 		assertEquals(expected, new String(data));
 	}
+
+	public void testDownloadAttachmentJobExceptionThrown() throws Exception {
+		File file = File.createTempFile("mylyn", null);
+		file.delete();
+
+		attachmentHandler.setException(new CoreException(Status.CANCEL_STATUS));
+
+		DownloadAttachmentJob job = new DownloadAttachmentJob(attachment, file);
+		job.schedule();
+		job.join();
+
+		assertEquals(Status.OK_STATUS, job.getResult());
+		assertFalse(file.exists());
+	}
+
 }

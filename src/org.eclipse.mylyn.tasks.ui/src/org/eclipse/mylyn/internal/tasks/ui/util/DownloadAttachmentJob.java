@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2008 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -45,11 +45,16 @@ public class DownloadAttachmentJob extends Job {
 	protected IStatus run(IProgressMonitor monitor) {
 		try {
 			try {
+				boolean exceptionThrown = true;
 				OutputStream out = new BufferedOutputStream(new FileOutputStream(targetFile));
 				try {
 					AttachmentUtil.downloadAttachment(attachment, out, monitor);
+					exceptionThrown = false;
 				} finally {
 					out.close();
+					if (exceptionThrown) {
+						targetFile.delete();
+					}
 				}
 			} catch (IOException e) {
 				throw new CoreException(new RepositoryStatus(attachment.getTaskRepository(), IStatus.ERROR,

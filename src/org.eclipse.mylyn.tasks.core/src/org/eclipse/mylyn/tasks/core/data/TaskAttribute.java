@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -48,6 +48,11 @@ public final class TaskAttribute {
 	public static final String ATTACHMENT_IS_DEPRECATED = "task.common.attachment.deprecated"; //$NON-NLS-1$
 
 	public static final String ATTACHMENT_IS_PATCH = "task.common.attachment.patch"; //$NON-NLS-1$
+
+	/**
+	 * @since 3.4
+	 */
+	public static final String ATTACHMENT_REPLACE_EXISTING = "task.common.attachment.replaceExisting"; //$NON-NLS-1$
 
 	public static final String ATTACHMENT_SIZE = "task.common.attachment.size"; //$NON-NLS-1$
 
@@ -289,7 +294,7 @@ public final class TaskAttribute {
 		Assert.isNotNull(parentAttribute);
 		Assert.isNotNull(attributeId);
 		this.parentAttribute = parentAttribute;
-		this.attributeId = attributeId;
+		this.attributeId = attributeId.intern();
 		this.taskData = parentAttribute.getTaskData();
 		this.values = new ArrayList<String>(1);
 		parentAttribute.add(this);

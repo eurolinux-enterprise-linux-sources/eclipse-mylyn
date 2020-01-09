@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -501,7 +501,6 @@ public class BugzillaTaskDataHandler extends AbstractTaskDataHandler {
 		optionValues = repositoryConfiguration.getTargetMilestones(productAttribute.getValue());
 		if (optionValues.size() > 0) {
 			TaskAttribute attributeTargetMilestone = createAttribute(taskData, BugzillaAttribute.TARGET_MILESTONE);
-			Collections.sort(optionValues);
 			for (String option : optionValues) {
 				attributeTargetMilestone.putOption(option, option);
 			}
@@ -662,8 +661,9 @@ public class BugzillaTaskDataHandler extends AbstractTaskDataHandler {
 		subTaskData.getRoot().getAttribute(BugzillaAttribute.BLOCKED.getKey()).setValue(parentTaskData.getTaskId());
 		TaskAttribute parentAttributeAssigned = parentTaskData.getRoot()
 				.getMappedAttribute(TaskAttribute.USER_ASSIGNED);
-		subTaskData.getRoot().getAttribute(BugzillaAttribute.ASSIGNED_TO.getKey()).setValue(
-				parentAttributeAssigned.getValue());
+		subTaskData.getRoot()
+				.getAttribute(BugzillaAttribute.ASSIGNED_TO.getKey())
+				.setValue(parentAttributeAssigned.getValue());
 		return true;
 	}
 

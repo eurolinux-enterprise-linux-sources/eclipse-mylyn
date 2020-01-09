@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -18,9 +18,9 @@ import java.util.List;
 import java.util.Map;
 
 import org.eclipse.core.runtime.IStatus;
-import org.eclipse.mylyn.internal.provisional.tasks.bugs.IProduct;
-import org.eclipse.mylyn.internal.provisional.tasks.bugs.ISupportRequest;
-import org.eclipse.mylyn.internal.provisional.tasks.bugs.ITaskContribution;
+import org.eclipse.mylyn.tasks.bugs.IProduct;
+import org.eclipse.mylyn.tasks.bugs.ISupportRequest;
+import org.eclipse.mylyn.tasks.bugs.ITaskContribution;
 
 /**
  * @author Steffen Pingel

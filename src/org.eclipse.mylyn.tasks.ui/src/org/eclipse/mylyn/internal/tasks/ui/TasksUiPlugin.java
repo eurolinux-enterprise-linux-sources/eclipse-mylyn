@@ -44,6 +44,8 @@ import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.SafeRunner;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.jface.action.Action;
+import org.eclipse.jface.action.MenuManager;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.resource.ImageDescriptor;
@@ -52,6 +54,7 @@ import org.eclipse.mylyn.commons.core.StatusHandler;
 import org.eclipse.mylyn.commons.net.AuthenticationType;
 import org.eclipse.mylyn.commons.net.WebUtil;
 import org.eclipse.mylyn.context.core.ContextCore;
+import org.eclipse.mylyn.internal.commons.ui.TaskBarManager;
 import org.eclipse.mylyn.internal.context.core.ContextCorePlugin;
 import org.eclipse.mylyn.internal.monitor.ui.MonitorUiPlugin;
 import org.eclipse.mylyn.internal.provisional.commons.ui.AbstractNotification;
@@ -77,6 +80,9 @@ import org.eclipse.mylyn.internal.tasks.core.externalization.ExternalizationMana
 import org.eclipse.mylyn.internal.tasks.core.externalization.IExternalizationParticipant;
 import org.eclipse.mylyn.internal.tasks.core.externalization.TaskListExternalizationParticipant;
 import org.eclipse.mylyn.internal.tasks.core.externalization.TaskListExternalizer;
+import org.eclipse.mylyn.internal.tasks.core.notifications.ServiceMessageManager;
+import org.eclipse.mylyn.internal.tasks.ui.actions.ActivateTaskDialogAction;
+import org.eclipse.mylyn.internal.tasks.ui.actions.NewTaskAction;
 import org.eclipse.mylyn.internal.tasks.ui.notifications.TaskListNotificationReminder;
 import org.eclipse.mylyn.internal.tasks.ui.notifications.TaskListNotifier;
 import org.eclipse.mylyn.internal.tasks.ui.util.TasksUiExtensionReader;
@@ -94,11 +100,13 @@ import org.eclipse.mylyn.tasks.core.ITask.PriorityLevel;
 import org.eclipse.mylyn.tasks.ui.AbstractRepositoryConnectorUi;
 import org.eclipse.mylyn.tasks.ui.AbstractTaskRepositoryLinkProvider;
 import org.eclipse.mylyn.tasks.ui.TasksUi;
+import org.eclipse.mylyn.tasks.ui.TasksUiImages;
 import org.eclipse.mylyn.tasks.ui.editors.AbstractTaskEditorPageFactory;
 import org.eclipse.osgi.util.NLS;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.IStartup;
+import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.forms.FormColors;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
@@ -149,14 +157,14 @@ public class TasksUiPlugin extends AbstractUIPlugin {
 
 	private RepositoryTemplateManager repositoryTemplateManager;
 
+	private ServiceMessageManager serviceMessageManager;
+
 	private final Set<AbstractTaskEditorPageFactory> taskEditorPageFactories = new HashSet<AbstractTaskEditorPageFactory>();
 
 	private final TreeSet<AbstractTaskRepositoryLinkProvider> repositoryLinkProviders = new TreeSet<AbstractTaskRepositoryLinkProvider>(
 			new OrderComparator());
 
 	private TaskListExternalizer taskListExternalizer;
-
-	private ITaskHighlighter highlighter;
 
 	private final Map<String, Image> brandingIcons = new HashMap<String, Image>();
 
@@ -345,6 +353,14 @@ public class TasksUiPlugin extends AbstractUIPlugin {
 					|| event.getProperty().equals(ITasksUiPreferenceConstants.REPOSITORY_SYNCH_SCHEDULE_MILISECONDS)) {
 				updateSynchronizationScheduler(false);
 			}
+
+			if (event.getProperty().equals(ITasksUiPreferenceConstants.SERVICE_MESSAGES_ENABLED)) {
+				if (getPreferenceStore().getBoolean(ITasksUiPreferenceConstants.SERVICE_MESSAGES_ENABLED)) {
+					serviceMessageManager.start();
+				} else {
+					serviceMessageManager.stop();
+				}
+			}
 		}
 	};
 
@@ -432,6 +448,8 @@ public class TasksUiPlugin extends AbstractUIPlugin {
 
 			initializeNotificationsAndSynchronization();
 
+			addSystemTaskBarActions();
+
 			try {
 				getPreferenceStore().addPropertyChangeListener(PROPERTY_LISTENER);
 
@@ -461,6 +479,31 @@ public class TasksUiPlugin extends AbstractUIPlugin {
 	public TasksUiPlugin() {
 		super();
 		INSTANCE = this;
+	}
+
+	private void addSystemTaskBarActions() {
+		MenuManager taskBarMenuManager = TaskBarManager.getTaskBarMenuManager();
+		if (taskBarMenuManager != null) {
+			NewTaskAction newTaskAction = new NewTaskAction(Messages.TasksUiPlugin_New_Task, true);
+			taskBarMenuManager.add(newTaskAction);
+
+			Action activateTaskAction = new Action() {
+				@Override
+				public void run() {
+					ActivateTaskDialogAction activateTaskDialogAction = new ActivateTaskDialogAction();
+					IWorkbenchWindow window = getWorkbench().getActiveWorkbenchWindow();
+					if (window == null && getWorkbench().getWorkbenchWindows().length > 0) {
+						window = getWorkbench().getWorkbenchWindows()[0];
+					}
+					activateTaskDialogAction.init(window);
+					activateTaskDialogAction.run(null);
+				}
+			};
+			activateTaskAction.setImageDescriptor(TasksUiImages.CONTEXT_ACTIVE_CENTERED);
+			activateTaskAction.setText(Messages.TasksUiPlugin_Activate_Task);
+			taskBarMenuManager.add(activateTaskAction);
+			taskBarMenuManager.update(true);
+		}
 	}
 
 	private void updateSynchronizationScheduler(boolean initial) {
@@ -554,7 +597,7 @@ public class TasksUiPlugin extends AbstractUIPlugin {
 
 			// NOTE: initializing extensions in start(..) has caused race
 			// conditions previously
-			TasksUiExtensionReader.initStartupExtensions(taskListExternalizer);
+			TasksUiExtensionReader.initStartupExtensions(taskListExternalizer, repositoryManager);
 
 			// instantiate taskDataManager
 			TaskDataStore taskDataStore = new TaskDataStore(repositoryManager);
@@ -607,6 +650,20 @@ public class TasksUiPlugin extends AbstractUIPlugin {
 			// make this available early for clients that are not initialized through tasks ui but need access 
 			taskListNotificationManager = new TaskListNotificationManager();
 
+			String lastMod = getPreferenceStore().getString(
+					ITasksUiPreferenceConstants.LAST_SERVICE_MESSAGE_LAST_MODIFIED);
+			String etag = getPreferenceStore().getString(ITasksUiPreferenceConstants.LAST_SERVICE_MESSAGE_ETAG);
+			String serviceMessageUrl = getPreferenceStore().getString(ITasksUiPreferenceConstants.SERVICE_MESSAGE_URL);
+
+			Long checktime = getPreferenceStore().getLong(ITasksUiPreferenceConstants.LAST_SERVICE_MESSAGE_CHECKTIME);
+
+			serviceMessageManager = new ServiceMessageManager(serviceMessageUrl, lastMod, etag, checktime);
+
+			// Disabled for initial 3.4 release as per bug#263528
+//			if (getPreferenceStore().getBoolean(ITasksUiPreferenceConstants.SERVICE_MESSAGES_ENABLED)) {
+//				serviceMessageManager.start();
+//			}
+
 			// trigger lazy initialization
 			new TasksUiInitializationJob().schedule();
 		} catch (Exception e) {
@@ -647,7 +704,8 @@ public class TasksUiPlugin extends AbstractUIPlugin {
 
 	private void loadTemplateRepositories() {
 		// Add standard local task repository
-		getLocalTaskRepository();
+		TaskRepository local = getLocalTaskRepository();
+		repositoryManager.applyMigrators(local);
 
 		// Add the automatically created templates
 		for (AbstractRepositoryConnector connector : repositoryManager.getRepositoryConnectors()) {
@@ -666,6 +724,7 @@ public class TasksUiPlugin extends AbstractUIPlugin {
 								taskRepository.setCredentials(AuthenticationType.REPOSITORY, null, true);
 							}
 							repositoryManager.addRepository(taskRepository);
+							repositoryManager.applyMigrators(taskRepository);
 						}
 					} catch (Throwable t) {
 						StatusHandler.log(new Status(IStatus.ERROR, TasksUiPlugin.ID_PLUGIN, NLS.bind(
@@ -729,6 +788,7 @@ public class TasksUiPlugin extends AbstractUIPlugin {
 //					ContextCorePlugin.getDefault().getPluginPreferences().removePropertyChangeListener(
 //							PREFERENCE_LISTENER);
 //				}
+				serviceMessageManager.stop();
 				taskEditorBloatManager.dispose(PlatformUI.getWorkbench());
 				INSTANCE = null;
 			}
@@ -870,6 +930,7 @@ public class TasksUiPlugin extends AbstractUIPlugin {
 		store.setDefault(ITasksUiPreferenceConstants.PREF_DATA_DIR, getDefaultDataDirectory());
 		store.setDefault(ITasksUiPreferenceConstants.GROUP_SUBTASKS, true);
 		store.setDefault(ITasksUiPreferenceConstants.NOTIFICATIONS_ENABLED, true);
+		store.setDefault(ITasksUiPreferenceConstants.SERVICE_MESSAGES_ENABLED, true);
 		store.setDefault(ITasksUiPreferenceConstants.FILTER_PRIORITY, PriorityLevel.P5.toString());
 		store.setDefault(ITasksUiPreferenceConstants.EDITOR_TASKS_RICH, true);
 		store.setDefault(ITasksUiPreferenceConstants.EDITOR_CURRENT_LINE_HIGHLIGHT, false);
@@ -896,6 +957,8 @@ public class TasksUiPlugin extends AbstractUIPlugin {
 
 		store.setDefault(ITasksUiPreferenceConstants.AUTO_EXPAND_TASK_LIST, true);
 		store.setDefault(ITasksUiPreferenceConstants.TASK_LIST_TOOL_TIPS_ENABLED, true);
+
+		store.setDefault(ITasksUiPreferenceConstants.SERVICE_MESSAGE_URL, "http://eclipse.org/mylyn/message.xml"); //$NON-NLS-1$
 	}
 
 	public static TaskActivityManager getTaskActivityManager() {
@@ -961,14 +1024,6 @@ public class TasksUiPlugin extends AbstractUIPlugin {
 
 	public String getBackupFolderPath() {
 		return getDataDirectory() + DEFAULT_PATH_SEPARATOR + ITasksCoreConstants.DEFAULT_BACKUP_FOLDER_NAME;
-	}
-
-	public ITaskHighlighter getHighlighter() {
-		return highlighter;
-	}
-
-	public void setHighlighter(ITaskHighlighter highlighter) {
-		this.highlighter = highlighter;
 	}
 
 	/**
@@ -1314,6 +1369,10 @@ public class TasksUiPlugin extends AbstractUIPlugin {
 			StatusHandler.log(new Status(IStatus.ERROR, TasksUiPlugin.ID_PLUGIN,
 					"Could not initialize task list backup and synchronization", t)); //$NON-NLS-1$
 		}
+	}
+
+	public ServiceMessageManager getServiceMessageManager() {
+		return serviceMessageManager;
 	}
 
 }

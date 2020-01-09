@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2008 David Green and others.
+ * Copyright (c) 2007, 2009 David Green and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -113,7 +113,7 @@ public class AnnotationHyperlinkDetector implements IHyperlinkDetector {
 				} else if (p2.getLength() > p1.getLength()) {
 					return 1;
 				}
-				return new Integer(System.identityHashCode(p1)).compareTo(System.identityHashCode(p2));
+				return Integer.valueOf(System.identityHashCode(p1)).compareTo(System.identityHashCode(p2));
 			}
 		}
 
@@ -123,7 +123,6 @@ public class AnnotationHyperlinkDetector implements IHyperlinkDetector {
 	 * A hyperlink implementation that causes the viewer's selection (and scrolling) to adjust to the hyperlink target.
 	 * 
 	 * @author David Green
-	 * 
 	 */
 	protected static class DocumentHyperlink implements IHyperlink {
 

@@ -47,6 +47,7 @@ import org.eclipse.mylyn.internal.tasks.core.RepositoryQuery;
 import org.eclipse.mylyn.tasks.core.AbstractRepositoryConnector;
 import org.eclipse.mylyn.tasks.core.IRepositoryQuery;
 import org.eclipse.mylyn.tasks.core.ITask;
+import org.eclipse.mylyn.tasks.core.ITask.PriorityLevel;
 import org.eclipse.mylyn.tasks.core.RepositoryStatus;
 import org.eclipse.mylyn.tasks.core.TaskRepository;
 import org.eclipse.mylyn.tasks.core.data.AbstractTaskAttachmentHandler;
@@ -110,6 +111,7 @@ public class BugzillaRepositoryConnector extends AbstractRepositoryConnector {
 		enSetting.addLanguageAttribute("error_login", "log in"); //$NON-NLS-1$ //$NON-NLS-2$
 		enSetting.addLanguageAttribute("error_login", "check e-mail"); //$NON-NLS-1$ //$NON-NLS-2$
 		enSetting.addLanguageAttribute("error_login", "Invalid Username Or Password"); //$NON-NLS-1$ //$NON-NLS-2$
+		enSetting.addLanguageAttribute("error_login", "account locked"); //$NON-NLS-1$//$NON-NLS-2$
 		enSetting.addLanguageAttribute("error_collision", "Mid-air collision!"); //$NON-NLS-1$ //$NON-NLS-2$
 		enSetting.addLanguageAttribute("error_comment_required", "Comment Required"); //$NON-NLS-1$ //$NON-NLS-2$
 		enSetting.addLanguageAttribute("error_logged_out", "logged out"); //$NON-NLS-1$ //$NON-NLS-2$
@@ -117,6 +119,7 @@ public class BugzillaRepositoryConnector extends AbstractRepositoryConnector {
 		enSetting.addLanguageAttribute("bad_login", "log in"); //$NON-NLS-1$ //$NON-NLS-2$
 		enSetting.addLanguageAttribute("bad_login", "check e-mail"); //$NON-NLS-1$ //$NON-NLS-2$
 		enSetting.addLanguageAttribute("bad_login", "Invalid Username Or Password"); //$NON-NLS-1$ //$NON-NLS-2$
+		enSetting.addLanguageAttribute("bad_login", "account locked"); //$NON-NLS-1$//$NON-NLS-2$
 		enSetting.addLanguageAttribute("bad_login", "error"); //$NON-NLS-1$ //$NON-NLS-2$
 		enSetting.addLanguageAttribute("processed", "processed"); //$NON-NLS-1$ //$NON-NLS-2$
 		enSetting.addLanguageAttribute("changes_submitted", "Changes submitted"); //$NON-NLS-1$ //$NON-NLS-2$
@@ -173,9 +176,14 @@ public class BugzillaRepositoryConnector extends AbstractRepositoryConnector {
 		boolean isComplete = false;
 		TaskAttribute attributeStatus = taskData.getRoot().getMappedAttribute(TaskAttribute.STATUS);
 		if (attributeStatus != null) {
-			isComplete = attributeStatus.getValue().equals(IBugzillaConstants.VALUE_STATUS_RESOLVED)
-					|| attributeStatus.getValue().equals(IBugzillaConstants.VALUE_STATUS_CLOSED)
-					|| attributeStatus.getValue().equals(IBugzillaConstants.VALUE_STATUS_VERIFIED);
+			RepositoryConfiguration configuration = getRepositoryConfiguration(repository.getRepositoryUrl());
+			if (configuration == null || configuration.getClosedStatusValues().isEmpty()) {
+				isComplete = attributeStatus.getValue().equals(IBugzillaConstants.VALUE_STATUS_RESOLVED)
+						|| attributeStatus.getValue().equals(IBugzillaConstants.VALUE_STATUS_CLOSED)
+						|| attributeStatus.getValue().equals(IBugzillaConstants.VALUE_STATUS_VERIFIED);
+			} else {
+				isComplete = configuration.getClosedStatusValues().contains(attributeStatus.getValue());
+			}
 		}
 
 		if (taskData.isPartial()) {
@@ -646,6 +654,24 @@ public class BugzillaRepositoryConnector extends AbstractRepositoryConnector {
 			public String getTaskUrl() {
 				return taskData.getRepositoryUrl();
 			}
+
+			@Override
+			public PriorityLevel getPriorityLevel() {
+				RepositoryConfiguration repositoryConfiguration = BugzillaRepositoryConnector.this.getRepositoryConfiguration(taskData.getRepositoryUrl());
+				BugzillaVersion bugzillaVersion;
+				if (repositoryConfiguration != null) {
+					bugzillaVersion = repositoryConfiguration.getInstallVersion();
+				} else {
+					bugzillaVersion = BugzillaVersion.MIN_VERSION;
+				}
+				if (bugzillaVersion.compareTo(BugzillaVersion.BUGZILLA_3_6) >= 0) {
+					BugzillaPriorityLevel bugzillaPriorityLevel = BugzillaPriorityLevel.fromPriority(getPriority());
+					if (bugzillaPriorityLevel != null) {
+						return bugzillaPriorityLevel.toPriorityLevel();
+					}
+				}
+				return super.getPriorityLevel();
+			}
 		};
 	}
 
@@ -715,29 +741,44 @@ public class BugzillaRepositoryConnector extends AbstractRepositoryConnector {
 					configuration = repositoryConfigurations.get(repository.getRepositoryUrl());
 					if (configuration == null || forceRefresh) {
 						String eTag = null;
+						Date lastModifiedHeader = null;
 						if (configuration != null && !forceRefresh) {
 							eTag = configuration.getETagValue();
+							lastModifiedHeader = configuration.getLastModifiedHeader();
 						}
-						BugzillaClient client = clientManager.getClient(repository, monitor);
+						BugzillaClient client = getClientManager().getClient(repository, monitor);
 						configuration = client.getRepositoryConfiguration(monitor, eTag);
+						boolean newer = true;
 						if (configuration != null) {
-							internalAddConfiguration(configuration);
+							if (lastModifiedHeader != null) {
+								Date configLastModifiedHeader = configuration.getLastModifiedHeader();
+								if (configLastModifiedHeader != null) {
+									newer = !configLastModifiedHeader.before(lastModifiedHeader);
+								}
+							}
+							if (newer) {
+								String configVersion = configuration.getInstallVersion().toString();
+								String repositoryVersion = repository.getVersion();
+								if (!configVersion.equals(repositoryVersion)) {
+									repository.setVersion(configVersion);
+								}
+								internalAddConfiguration(configuration);
+							}
 						}
 					}
 				}
 			}
-			return configuration;//repositoryConfigurations.get(repository.getRepositoryUrl());
+			return configuration;
 		} catch (IOException e) {
 			throw new CoreException(new Status(IStatus.ERROR, BugzillaCorePlugin.ID_PLUGIN, 1,
 					"Error retrieving task attributes from repository.\n\n" + e.getMessage(), e)); //$NON-NLS-1$
 		} catch (CoreException e) {
-			// TODO: handle exception
-			if (e.getMessage().equals("Not changed")) {
+			if (e.getMessage().equals("Not changed")) { //$NON-NLS-1$
 				RepositoryConfiguration configuration = repositoryConfigurations.get(repository.getRepositoryUrl());
 				if (configuration == null) {
 					throw new CoreException(new BugzillaStatus(IStatus.ERROR, BugzillaCorePlugin.ID_PLUGIN,
-							RepositoryStatus.ERROR_INTERNAL, "Get not changed (304) for "
-									+ repository.getRepositoryUrl().toString() + " but we have no valid configuration")); //$NON-NLS-1$
+							RepositoryStatus.ERROR_INTERNAL, "Failed to retrieve repository configuration for " //$NON-NLS-1$
+									+ repository.getRepositoryUrl().toString()));
 
 				}
 				return configuration;
@@ -947,6 +988,77 @@ public class BugzillaRepositoryConnector extends AbstractRepositoryConnector {
 		} catch (Exception e) {
 			StatusHandler.log(new Status(IStatus.ERROR, BugzillaCorePlugin.ID_PLUGIN, "could not set platform options", //$NON-NLS-1$
 					e));
+		}
+	}
+
+	public enum BugzillaPriorityLevel {
+		HIGHEST, HIGH, NORMAL, LOW, LOWEST, NONE;
+
+		public static BugzillaPriorityLevel fromPriority(String priority) {
+			if (priority == null) {
+				return null;
+			}
+			if (priority.equals("Highest")) { //$NON-NLS-1$
+				return HIGHEST;
+			}
+			if (priority.equals("High")) { //$NON-NLS-1$
+				return HIGH;
+			}
+			if (priority.equals("Normal")) { //$NON-NLS-1$
+				return NORMAL;
+			}
+			if (priority.equals("Low")) { //$NON-NLS-1$
+				return LOW;
+			}
+			if (priority.equals("Lowest")) { //$NON-NLS-1$
+				return LOWEST;
+			}
+			if (priority.equals("Lowest")) { //$NON-NLS-1$
+				return LOWEST;
+			}
+			if (priority.equals("---")) { //$NON-NLS-1$
+				return NONE;
+			}
+			return null;
+		}
+
+		public PriorityLevel toPriorityLevel() {
+			switch (this) {
+			case HIGHEST:
+				return PriorityLevel.P1;
+			case HIGH:
+				return PriorityLevel.P2;
+			case NORMAL:
+				return PriorityLevel.P3;
+			case LOW:
+				return PriorityLevel.P4;
+			case LOWEST:
+				return PriorityLevel.P5;
+			case NONE:
+				return PriorityLevel.P3;
+			default:
+				return null;
+			}
+		}
+
+		@Override
+		public String toString() {
+			switch (this) {
+			case HIGHEST:
+				return "Highest"; //$NON-NLS-1$
+			case HIGH:
+				return "High"; //$NON-NLS-1$
+			case NORMAL:
+				return "Normal"; //$NON-NLS-1$
+			case LOW:
+				return "Low"; //$NON-NLS-1$
+			case LOWEST:
+				return "Lowest"; //$NON-NLS-1$
+			case NONE:
+				return "---"; //$NON-NLS-1$
+			default:
+				return null;
+			}
 		}
 	}
 

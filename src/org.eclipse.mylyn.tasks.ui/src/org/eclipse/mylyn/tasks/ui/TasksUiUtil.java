@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -36,13 +36,13 @@ import org.eclipse.mylyn.internal.tasks.ui.wizards.EditRepositoryWizard;
 import org.eclipse.mylyn.internal.tasks.ui.wizards.MultiRepositoryAwareWizard;
 import org.eclipse.mylyn.internal.tasks.ui.wizards.NewLocalTaskWizard;
 import org.eclipse.mylyn.tasks.core.AbstractRepositoryConnector;
+import org.eclipse.mylyn.tasks.core.IRepositoryElement;
+import org.eclipse.mylyn.tasks.core.IRepositoryManager;
 import org.eclipse.mylyn.tasks.core.IRepositoryQuery;
 import org.eclipse.mylyn.tasks.core.ITask;
+import org.eclipse.mylyn.tasks.core.ITask.SynchronizationState;
 import org.eclipse.mylyn.tasks.core.ITaskMapping;
 import org.eclipse.mylyn.tasks.core.TaskRepository;
-import org.eclipse.mylyn.tasks.core.ITask.SynchronizationState;
-import org.eclipse.mylyn.tasks.ui.editors.TaskEditor;
-import org.eclipse.mylyn.tasks.ui.editors.TaskEditorInput;
 import org.eclipse.mylyn.tasks.ui.wizards.TaskRepositoryWizardDialog;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.IEditorInput;
@@ -161,19 +161,6 @@ public class TasksUiUtil {
 		return null;
 	}
 
-	private static String getTaskEditorId(final ITask task) {
-		String taskEditorId = TaskEditor.ID_EDITOR;
-		if (task != null) {
-			ITask repositoryTask = task;
-			AbstractRepositoryConnectorUi repositoryUi = TasksUiPlugin.getConnectorUi(repositoryTask.getConnectorKind());
-			String customTaskEditorId = repositoryUi.getTaskEditorId(repositoryTask);
-			if (customTaskEditorId != null) {
-				taskEditorId = customTaskEditorId;
-			}
-		}
-		return taskEditorId;
-	}
-
 	public static IEditorPart openEditor(IEditorInput input, String editorId, IWorkbenchPage page) {
 		if (page == null) {
 			IWorkbenchWindow window = PlatformUI.getWorkbench().getActiveWorkbenchWindow();
@@ -212,7 +199,6 @@ public class TasksUiUtil {
 				dialog.create();
 				dialog.setBlockOnOpen(true);
 				if (dialog.open() == Window.CANCEL) {
-					dialog.close();
 					return Window.CANCEL;
 				}
 			}
@@ -291,48 +277,7 @@ public class TasksUiUtil {
 	 * @since 3.0
 	 */
 	public static boolean openTask(ITask task) {
-		Assert.isNotNull(task);
-		IWorkbenchWindow window = PlatformUI.getWorkbench().getActiveWorkbenchWindow();
-		if (window != null) {
-			boolean openWithBrowser = !TasksUiPlugin.getDefault().getPreferenceStore().getBoolean(
-					ITasksUiPreferenceConstants.EDITOR_TASKS_RICH);
-			if (openWithBrowser) {
-				openUrl(task.getUrl());
-				return true;
-			} else {
-				TaskRepository taskRepository = TasksUi.getRepositoryManager().getRepository(task.getConnectorKind(),
-						task.getRepositoryUrl());
-				IEditorInput editorInput = new TaskEditorInput(taskRepository, task);
-				boolean wasOpen = refreshEditorContentsIfOpen(task, editorInput);
-				if (wasOpen) {
-					synchronizeTask(taskRepository, task);
-					return true;
-				} else {
-					IWorkbenchPage page = window.getActivePage();
-					IEditorPart editor = openEditor(editorInput, getTaskEditorId(task), page);
-					if (editor != null) {
-						synchronizeTask(taskRepository, task);
-						return true;
-					}
-				}
-			}
-		} else {
-			StatusHandler.log(new Status(IStatus.ERROR, TasksUiPlugin.ID_PLUGIN, "Unable to open editor for \"" //$NON-NLS-1$
-					+ task.getSummary() + "\": no active workbench window")); //$NON-NLS-1$
-		}
-		return false;
-	}
-
-	private static void synchronizeTask(TaskRepository taskRepository, ITask task) {
-		if (task instanceof LocalTask) {
-			return;
-		}
-
-		AbstractRepositoryConnector connector = TasksUi.getRepositoryManager().getRepositoryConnector(
-				task.getConnectorKind());
-		if (connector.canSynchronizeTask(taskRepository, task)) {
-			TasksUiInternal.synchronizeTaskInBackground(connector, task);
-		}
+		return TasksUiInternal.openTask(task, task.getTaskId()) != null;
 	}
 
 	/**
@@ -375,6 +320,16 @@ public class TasksUiUtil {
 	 * @since 3.0
 	 */
 	public static boolean openTask(String repositoryUrl, String taskId, String fullUrl) {
+		return openTask(repositoryUrl, taskId, fullUrl, 0);
+	}
+
+	/**
+	 * Either pass in a repository and taskId, or fullUrl, or all of them the time stamp is used for selecting the
+	 * correct comment
+	 * 
+	 * @since 3.4
+	 */
+	public static boolean openTask(String repositoryUrl, String taskId, String fullUrl, long timestamp) {
 		AbstractTask task = TasksUiInternal.getTask(repositoryUrl, taskId, fullUrl);
 
 		if (task != null) {
@@ -387,12 +342,14 @@ public class TasksUiUtil {
 				fullUrl);
 		if (connector != null) {
 			if (repositoryUrl != null && taskId != null) {
-				opened = TasksUiInternal.openRepositoryTask(connector.getConnectorKind(), repositoryUrl, taskId);
+				opened = TasksUiInternal.openRepositoryTask(connector.getConnectorKind(), repositoryUrl, taskId, null,
+						timestamp);
 			} else {
 				repositoryUrl = connector.getRepositoryUrlFromTaskUrl(fullUrl);
 				taskId = connector.getTaskIdFromTaskUrl(fullUrl);
 				if (repositoryUrl != null && taskId != null) {
-					opened = TasksUiInternal.openRepositoryTask(connector.getConnectorKind(), repositoryUrl, taskId);
+					opened = TasksUiInternal.openRepositoryTask(connector.getConnectorKind(), repositoryUrl, taskId,
+							null, timestamp);
 				}
 			}
 		}
@@ -421,20 +378,33 @@ public class TasksUiUtil {
 	}
 
 	/**
-	 * If task is already open and has incoming, must force refresh in place
+	 * Opens <code>element</code> in a browser using an authenticated URL if available.
+	 * 
+	 * @since 3.4
 	 */
-	private static boolean refreshEditorContentsIfOpen(ITask task, IEditorInput editorInput) {
-		if (task != null) {
-			if (task.getSynchronizationState() == SynchronizationState.INCOMING
-					|| task.getSynchronizationState() == SynchronizationState.CONFLICT) {
-				for (TaskEditor editor : TasksUiInternal.getActiveRepositoryTaskEditors()) {
-					if (editor.getEditorInput().equals(editorInput)) {
-						editor.refreshPages();
-						editor.getEditorSite().getPage().activate(editor);
-						return true;
-					}
-				}
-			}
+	public static boolean openWithBrowser(IRepositoryElement element) {
+		IRepositoryManager repositoryManager = TasksUi.getRepositoryManager();
+		TaskRepository repository = null;
+		if (element instanceof ITask) {
+			repository = repositoryManager.getRepository(((ITask) element).getConnectorKind(),
+					((ITask) element).getRepositoryUrl());
+		} else if (element instanceof IRepositoryQuery) {
+			repository = repositoryManager.getRepository(((IRepositoryQuery) element).getConnectorKind(),
+					((IRepositoryQuery) element).getRepositoryUrl());
+		}
+		return (repository != null) ? openWithBrowser(repository, element) : null;
+	}
+
+	/**
+	 * Opens <code>element</code> in a browser using an authenticated URL if available.
+	 * 
+	 * @since 3.4
+	 */
+	public static boolean openWithBrowser(TaskRepository repository, IRepositoryElement element) {
+		String url = TasksUiInternal.getAuthenticatedUrl(repository, element);
+		if (url != null) {
+			openUrl(url);
+			return true;
 		}
 		return false;
 	}
@@ -444,11 +414,25 @@ public class TasksUiUtil {
 	 */
 	public static IViewPart openTasksViewInActivePerspective() {
 		try {
-			return PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage().showView(
-					ITasksUiConstants.ID_VIEW_TASKS);
+			return PlatformUI.getWorkbench()
+					.getActiveWorkbenchWindow()
+					.getActivePage()
+					.showView(ITasksUiConstants.ID_VIEW_TASKS);
 		} catch (Exception e) {
 			StatusHandler.log(new Status(IStatus.ERROR, TasksUiPlugin.ID_PLUGIN, "Could not show Task List view", e)); //$NON-NLS-1$
 			return null;
 		}
+	}
+
+	/**
+	 * Returns if the current line in the task editor should be highlighted.
+	 * 
+	 * @return true, if line highlighting is enabled
+	 * @since 3.4
+	 */
+	public static boolean getHighlightCurrentLine() {
+		return TasksUiPlugin.getDefault()
+				.getPreferenceStore()
+				.getBoolean(ITasksUiPreferenceConstants.EDITOR_CURRENT_LINE_HIGHLIGHT);
 	}
 }

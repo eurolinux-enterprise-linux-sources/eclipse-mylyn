@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -23,6 +23,7 @@ import org.eclipse.core.runtime.jobs.JobChangeAdapter;
 import org.eclipse.jface.action.ToolBarManager;
 import org.eclipse.jface.layout.GridDataFactory;
 import org.eclipse.jface.viewers.StructuredSelection;
+import org.eclipse.mylyn.internal.provisional.commons.ui.WorkbenchUtil;
 import org.eclipse.mylyn.internal.tasks.ui.notifications.TaskDiffUtil;
 import org.eclipse.mylyn.internal.tasks.ui.util.TasksUiInternal;
 import org.eclipse.mylyn.internal.tasks.ui.views.UpdateRepositoryConfigurationAction;
@@ -226,13 +227,15 @@ public class TaskEditorAttributePart extends AbstractTaskEditorSection {
 													Messages.TaskEditorAttributePart_Updating_of_repository_configuration_failed,
 													Messages.TaskEditorAttributePart_Update_Failed, job.getStatus());
 								} else {
-									getTaskEditorPage().refreshFormContent();
+									getTaskEditorPage().refresh();
 								}
 							}
 						});
 					}
 				});
 				job.setUser(true);
+				// show the progress in the system task bar if this is a user job (i.e. forced)
+				job.setProperty(WorkbenchUtil.SHOW_IN_TASKBAR_ICON_PROPERTY, Boolean.TRUE);
 				job.setPriority(Job.INTERACTIVE);
 				job.schedule();
 			};

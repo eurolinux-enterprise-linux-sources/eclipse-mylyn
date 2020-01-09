@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2008 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -71,9 +71,14 @@ public class RepositoryQueryWizard extends Wizard {
 		AbstractRepositoryQueryPage page = (AbstractRepositoryQueryPage) currentPage;
 		IRepositoryQuery query = page.getQuery();
 		if (query != null) {
+			String oldSummary = query.getSummary();
 			page.applyTo(query);
 			if (query instanceof RepositoryQuery) {
 				TasksUiPlugin.getTaskList().notifyElementChanged((RepositoryQuery) query);
+			}
+			if (oldSummary == null || !oldSummary.equals(query.getSummary())) {
+				// XXX trigger a full refresh to ensure correct sorting
+				TasksUiPlugin.getTaskList().notifyElementsChanged(null);
 			}
 		} else {
 			query = page.createQuery();

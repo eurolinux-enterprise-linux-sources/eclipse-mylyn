@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2008 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -56,7 +56,7 @@ public class TaskRepositoryUtil {
 	/**
 	 * Template exists and is auto add enabled
 	 */
-	private static boolean isAddAutomatically(String repositoryUrl) {
+	public static boolean isAddAutomatically(String repositoryUrl) {
 		for (AbstractRepositoryConnector connector : TasksUi.getRepositoryManager().getRepositoryConnectors()) {
 			for (RepositoryTemplate template : TasksUiPlugin.getRepositoryTemplateManager().getTemplates(
 					connector.getConnectorKind())) {

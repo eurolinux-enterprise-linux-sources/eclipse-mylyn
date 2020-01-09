@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2008 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -31,6 +31,8 @@ public class CommonThemes {
 
 	public static final String COLOR_COMPLETED_TODAY = "org.eclipse.mylyn.tasks.ui.colors.foreground.today.completed"; //$NON-NLS-1$
 
+	public static final String COLOR_OVERDUE_FOR_OTHERS = "org.eclipse.mylyn.tasks.ui.colors.foreground.overdue.for.others"; //$NON-NLS-1$
+
 	public static final String COLOR_CATEGORY_GRADIENT_START = "org.eclipse.mylyn.tasks.ui.colors.category.gradient.start"; //$NON-NLS-1$
 
 	public static final String COLOR_CATEGORY_GRADIENT_END = "org.eclipse.mylyn.tasks.ui.colors.category.gradient.end"; //$NON-NLS-1$
@@ -38,6 +40,8 @@ public class CommonThemes {
 	public static final String COLOR_CATEGORY = COLOR_CATEGORY_GRADIENT_END;
 
 	public static final String FONT_EDITOR_COMMENT = "org.eclipse.mylyn.tasks.ui.fonts.task.editor.comment"; //$NON-NLS-1$
+
+	public static final String COLOR_TASK_ACTIVE = "org.eclipse.mylyn.tasks.ui.colors.foreground.task.active"; //$NON-NLS-1$
 
 	public static boolean isCommonTheme(String property) {
 		if (property == null) {
@@ -47,7 +51,7 @@ public class CommonThemes {
 					|| property.equals(COLOR_SCHEDULED_PAST) || property.equals(COLOR_COMPLETED_TODAY)
 					|| property.equals(COLOR_SCHEDULED_TODAY) || property.equals(COLOR_SCHEDULED_THIS_WEEK)
 					|| property.equals(COLOR_INCOMING_BACKGROUND) || property.equals(COLOR_CATEGORY_GRADIENT_START)
-					|| property.equals(COLOR_CATEGORY_GRADIENT_END);
+					|| property.equals(COLOR_CATEGORY_GRADIENT_END) || property.equals(COLOR_TASK_ACTIVE);
 		}
 	}
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Jevgeni Holodkov and others.
+ * Copyright (c) 2004, 2010 Jevgeni Holodkov and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -101,7 +101,9 @@ public class QueryCloneAction extends Action implements IViewActionDelegate {
 		for (RepositoryQuery query : clonedQueries) {
 			TasksUiPlugin.getTaskList().addQuery(query);
 			AbstractRepositoryConnectorUi connectorUi = TasksUiPlugin.getConnectorUi(query.getConnectorKind());
-			TasksUiInternal.openEditQueryDialog(connectorUi, query);
+			if (!TasksUiInternal.openEditQueryDialog(connectorUi, query)) {
+				TasksUiPlugin.getTaskList().deleteQuery(query);
+			}
 		}
 	}
 }

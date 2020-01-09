@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -21,6 +21,7 @@ import org.eclipse.mylyn.tasks.tests.core.TaskRepositoryLocationTest;
 import org.eclipse.mylyn.tasks.tests.ui.ContextPerspectiveManagerTest;
 import org.eclipse.mylyn.tasks.tests.ui.RetrieveTitleFromUrlTest;
 import org.eclipse.mylyn.tasks.tests.ui.TaskAttachmentPropertyTesterTest;
+import org.eclipse.mylyn.tasks.tests.ui.TaskAttributeDiffTest;
 import org.eclipse.mylyn.tasks.tests.ui.TaskHyperlinkDetectorTest;
 import org.eclipse.mylyn.tasks.tests.ui.TaskListSynchronizationSchedulerTest;
 import org.eclipse.mylyn.tasks.tests.ui.TaskRelationHyperlinkDetectorTest;
@@ -28,7 +29,9 @@ import org.eclipse.mylyn.tasks.tests.ui.editor.EditorUtilTest;
 import org.eclipse.mylyn.tasks.tests.ui.editor.PlanningPartTest;
 import org.eclipse.mylyn.tasks.tests.ui.editor.RepositoryCompletionProcessorTest;
 import org.eclipse.mylyn.tasks.tests.ui.editor.TaskEditorPartDescriptorTest;
+import org.eclipse.mylyn.tasks.tests.ui.editor.TaskMigratorTest;
 import org.eclipse.mylyn.tasks.tests.ui.editor.TaskUrlHyperlinkDetectorTest;
+import org.eclipse.mylyn.tasks.tests.util.ServiceMessageManagerTest;
 
 /**
  * @author Mik Kersten
@@ -72,6 +75,7 @@ public class AllTasksTests {
 		suite.addTestSuite(TaskExportImportTest.class);
 		suite.addTestSuite(PersonProposalProviderTest.class);
 		suite.addTestSuite(TaskRepositoryLocationTest.class);
+		suite.addTestSuite(TaskRepositoryTest.class);
 		suite.addTestSuite(AttachmentSizeFormatterTest.class);
 		suite.addTestSuite(TaskMapperTest.class);
 		suite.addTestSuite(TaskListUnmatchedContainerTest.class);
@@ -99,6 +103,9 @@ public class AllTasksTests {
 		suite.addTestSuite(TaskListSynchronizationSchedulerTest.class);
 		suite.addTestSuite(PlanningPartTest.class);
 		suite.addTestSuite(RepositoryCompletionProcessorTest.class);
+		suite.addTestSuite(TaskAttributeDiffTest.class);
+		suite.addTestSuite(ServiceMessageManagerTest.class);
+		suite.addTestSuite(TaskMigratorTest.class);
 		// XXX long running tests, put back?
 		//suite.addTestSuite(QueryExportImportTest.class);
 		//suite.addTestSuite(BackgroundSaveTest.class);

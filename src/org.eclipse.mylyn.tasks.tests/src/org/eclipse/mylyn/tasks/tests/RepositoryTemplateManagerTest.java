@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2008 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -35,12 +35,12 @@ public class RepositoryTemplateManagerTest extends TestCase {
 		RepositoryTemplate template = new RepositoryTemplate("Mock", MockRepositoryConnector.REPOSITORY_URL, "", "",
 				"", "", "", "", false, true);
 		try {
-			manager.addTemplate(MockRepositoryConnector.REPOSITORY_KIND, template);
+			manager.addTemplate(MockRepositoryConnector.CONNECTOR_KIND, template);
 			assertFalse(TaskRepositoryUtil.isAddAutomaticallyDisabled(MockRepositoryConnector.REPOSITORY_URL));
 			TaskRepositoryUtil.disableAddAutomatically(MockRepositoryConnector.REPOSITORY_URL);
 			assertTrue(TaskRepositoryUtil.isAddAutomaticallyDisabled(MockRepositoryConnector.REPOSITORY_URL));
 		} finally {
-			manager.removeTemplate(MockRepositoryConnector.REPOSITORY_KIND, template);
+			manager.removeTemplate(MockRepositoryConnector.CONNECTOR_KIND, template);
 		}
 	}
 

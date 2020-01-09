@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -13,6 +13,7 @@ package org.eclipse.mylyn.tasks.ui.editors;
 
 import org.eclipse.jface.action.IToolBarManager;
 import org.eclipse.mylyn.internal.tasks.ui.editors.EditorUtil;
+import org.eclipse.swt.SWT;
 import org.eclipse.ui.forms.IManagedForm;
 import org.eclipse.ui.forms.editor.FormEditor;
 import org.eclipse.ui.forms.editor.FormPage;
@@ -37,7 +38,20 @@ public class TaskFormPage extends FormPage {
 	@Override
 	protected void createFormContent(IManagedForm managedForm) {
 		super.createFormContent(managedForm);
+		managedForm.getToolkit().setBorderStyle(SWT.NULL);
 		EditorUtil.initializeScrollbars(managedForm.getForm());
+	}
+
+	/**
+	 * Invoked when the task opened in the editor is opened while the editor was already open or if a synchronization
+	 * completes.
+	 * <p>
+	 * Clients may override.
+	 * 
+	 * @since 3.4
+	 */
+	protected void refresh() {
+		// ignore
 	}
 
 }

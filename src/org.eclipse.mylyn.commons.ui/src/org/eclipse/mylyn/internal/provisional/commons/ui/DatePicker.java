@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -21,7 +21,6 @@ import java.util.List;
 
 import org.eclipse.jface.window.Window;
 import org.eclipse.mylyn.internal.commons.ui.Messages;
-import org.eclipse.mylyn.internal.provisional.commons.ui.dialogs.AbstractInPlaceDialog;
 import org.eclipse.mylyn.internal.provisional.commons.ui.dialogs.IInPlaceDialogListener;
 import org.eclipse.mylyn.internal.provisional.commons.ui.dialogs.InPlaceDateSelectionDialog;
 import org.eclipse.mylyn.internal.provisional.commons.ui.dialogs.InPlaceDialogEvent;
@@ -191,22 +190,12 @@ public class DatePicker extends Composite {
 				dialog.addEventListener(new IInPlaceDialogListener() {
 
 					public void buttonPressed(InPlaceDialogEvent event) {
-						Calendar selectedCalendar = newCalendar;
-
-						if (event.getReturnCode() == AbstractInPlaceDialog.ID_CLEAR) {
-							dateSelected(event.getReturnCode() == Window.CANCEL, null);
-						} else if (event.getReturnCode() == Window.OK) {
-							if (dialog.getDate() != null) {
-								if (selectedCalendar == null) {
-									selectedCalendar = Calendar.getInstance();
-								}
-								selectedCalendar.setTime(dialog.getDate());
-							} else {
-								selectedCalendar = null;
-							}
-							dateSelected(event.getReturnCode() == Window.CANCEL, selectedCalendar);
+						Calendar selectedCalendar = null;
+						if (event.getReturnCode() == Window.OK && dialog.getDate() != null) {
+							selectedCalendar = newCalendar;
+							selectedCalendar.setTime(dialog.getDate());
 						}
-
+						dateSelected(event.getReturnCode() == Window.CANCEL, selectedCalendar);
 					}
 				});
 				dialog.open();

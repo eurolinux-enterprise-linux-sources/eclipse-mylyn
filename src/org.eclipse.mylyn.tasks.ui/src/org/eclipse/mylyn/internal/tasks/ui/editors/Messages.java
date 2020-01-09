@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -60,8 +60,6 @@ public class Messages extends NLS {
 	public static String CommentGroupStrategy_Older;
 
 	public static String CommentGroupStrategy_Recent;
-
-	public static String DateAttributeEditor_Clear;
 
 	public static String PersonalPart_Personal_Planning;
 
@@ -153,19 +151,27 @@ public class Messages extends NLS {
 
 	public static String TaskEditorNewCommentPart_New_Comment;
 
+	public static String TaskEditorOutlineNode_Attachments;
+
+	public static String TaskEditorOutlineNode_Attributes;
+
 	public static String TaskEditorOutlineNode_Comments;
 
 	public static String TaskEditorOutlineNode_Description;
 
 	public static String TaskEditorOutlineNode_New_Comment;
 
+	public static String TaskEditorOutlineNode_Related_Tasks;
+
 	public static String TaskEditorOutlineNode_Task_;
+
+	public static String TaskEditorOutlineNode_TaskRelation_Label;
+
+	public static String TaskEditorOutlineNode_unknown_Label;
 
 	public static String TaskEditorPeoplePart_People;
 
 	public static String TaskEditorPlanningPart_0_SECOUNDS;
-
-	public static String TaskEditorPlanningPart_Active;
 
 	public static String TaskEditorPlanningPart_Add_Private_Notes_Tooltip;
 
@@ -251,6 +257,8 @@ public class Messages extends NLS {
 
 	public static String SummaryPart_Section_Title;
 
+	public static String TaskEditor_Edit_Task_Repository_ToolTip;
+
 	public static String TaskEditor_Task;
 
 	public static String TaskEditor_Task_added_to_the_Uncategorized_container;
@@ -262,4 +270,6 @@ public class Messages extends NLS {
 	public static String TaskEditorExtensionSettingsContribution_Plain_Text;
 
 	public static String TaskEditorExtensionSettingsContribution_Select_the_capabilities_of_the_task_editor;
+
+	public static String TaskUrlHyperlink_Open_URL_in_Task_Editor;
 }

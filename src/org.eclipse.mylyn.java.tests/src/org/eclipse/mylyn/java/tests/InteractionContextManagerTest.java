@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -16,8 +16,17 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 
+import org.eclipse.core.internal.resources.Workspace;
+import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IFolder;
+import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IResource;
+import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.IType;
@@ -38,6 +47,7 @@ import org.eclipse.mylyn.internal.context.core.InteractionContext;
 import org.eclipse.mylyn.internal.context.core.InteractionContextScaling;
 import org.eclipse.mylyn.internal.context.core.LocalContextStore;
 import org.eclipse.mylyn.internal.java.ui.JavaStructureBridge;
+import org.eclipse.mylyn.internal.resources.ui.ResourceStructureBridge;
 import org.eclipse.mylyn.monitor.core.InteractionEvent;
 import org.eclipse.ui.IWorkbenchPart;
 import org.eclipse.ui.PlatformUI;
@@ -103,7 +113,7 @@ public class InteractionContextManagerTest extends AbstractJavaContextTest {
 		assertTrue(resumed.getInterest().isInteresting());
 	}
 
-	// XXX 3.4 re-enable test
+	// XXX 3.5 re-enable test
 // NOTE: This is to test that the shell activation event is first in the activation history.
 //		 Currently this test fails but passes when run with CoreUtil.TEST_MODE = true
 //	public void testShellLifecycleActivityStart() {
@@ -310,6 +320,47 @@ public class InteractionContextManagerTest extends AbstractJavaContextTest {
 		ContextCorePlugin.getContextManager().processInteractionEvent(selectionEvent, true);
 		parentNode = ContextCore.getContextManager().getElement(parent.getHandleIdentifier());
 		assertTrue(parentNode.getInterest().isInteresting());
+	}
+
+	public void testPropagationBetweenResourcesAndJava() throws JavaModelException, Exception {
+		Workspace workspace = ((Workspace) ResourcesPlugin.getWorkspace());
+		IPath fullPath = p1.getResource().getFullPath();
+
+		IFolder newResource = (IFolder) workspace.newResource(fullPath.append("meta-inf"), IResource.FOLDER);
+		newResource.create(true, true, new NullProgressMonitor());
+		fullPath = newResource.getFullPath();
+
+		IFile file = (IFile) workspace.newResource(fullPath.append("test.xml"), IResource.FILE);
+		file.create(null, true, new NullProgressMonitor());
+
+		ResourceStructureBridge resourceStructureBridge = new ResourceStructureBridge();
+		String fileHandle = resourceStructureBridge.getHandleIdentifier(file);
+		IInteractionElement node = ContextCore.getContextManager().getElement(fileHandle);
+		assertFalse(node.getInterest().isInteresting());
+
+		InteractionEvent event = new InteractionEvent(InteractionEvent.Kind.MANIPULATION,
+				resourceStructureBridge.getContentType(), fileHandle, "source");
+		ContextCorePlugin.getContextManager().processInteractionEvent(event, true);
+
+		node = ContextCore.getContextManager().getElement(fileHandle);
+		assertTrue(node.getInterest().isInteresting());
+
+		project.build();
+		IProject project = file.getProject();
+
+		String projectHandle = resourceStructureBridge.getHandleIdentifier(project);
+		IInteractionElement parentNode = ContextCore.getContextManager().getElement(projectHandle);
+		assertFalse(parentNode.getInterest().isInteresting());
+
+		InteractionEvent selectionEvent = new InteractionEvent(InteractionEvent.Kind.SELECTION,
+				resourceStructureBridge.getContentType(), fileHandle, "source");
+		ContextCorePlugin.getContextManager().processInteractionEvent(selectionEvent, true);
+
+		parentNode = ContextCore.getContextManager().getElement(p1.getHandleIdentifier());
+		assertTrue("Package is not in the context", parentNode.getInterest().isInteresting());
+
+		parentNode = ContextCore.getContextManager().getElement(projectHandle);
+		assertTrue("Project is not in the context", parentNode.getInterest().isInteresting());
 	}
 
 	public void testIncremenOfParentDoi() throws JavaModelException, Exception {
@@ -522,15 +573,54 @@ public class InteractionContextManagerTest extends AbstractJavaContextTest {
 		}
 	}
 
+	public void testRemoveProjectFromContextRemovesOnlyInteresting() throws JavaModelException {
+
+		StubContextElementedDeletedListener listener = new StubContextElementedDeletedListener();
+		try {
+			manager.addListener(listener);
+			type1.createMethod("void m1() { }", null, true, null);
+			type1.createMethod("void m2() { }", null, true, null);
+			type1.createMethod("void m4() { }", null, true, null);
+			type1.createMethod("void m5() { }", null, true, null);
+			IJavaProject project = type1.getJavaProject();
+			IInteractionElement node = ContextCore.getContextManager().getElement(project.getHandleIdentifier());
+			assertFalse(node.getInterest().isInteresting());
+
+			InteractionEvent event = new InteractionEvent(InteractionEvent.Kind.MANIPULATION,
+					new JavaStructureBridge().getContentType(), project.getHandleIdentifier(), "source");
+			IInteractionElement element = ContextCorePlugin.getContextManager().processInteractionEvent(event, true);
+
+			// test implicit deletion
+			ContextCorePlugin.getContextManager().processInteractionEvent(event, true);
+			assertEquals(0, listener.explicitDeletionEventCount);
+			assertEquals(0, listener.elementCount);
+
+			// test explicit deletion
+			manager.manipulateInterestForElements(Collections.singletonList(element), false, false, false, "test",
+					ContextCorePlugin.getContextManager().getActiveContext(), true);
+			assertEquals(1, listener.explicitDeletionEventCount);
+
+			// should have 2 element changes.  1 for resources and 1 for java
+			assertEquals(2, listener.elementCount);
+
+		} finally {
+			// clean up
+			manager.removeListener(listener);
+		}
+	}
+
 	private class StubContextElementedDeletedListener extends AbstractContextListener {
 
 		private int explicitDeletionEventCount;
 
 		private int implicitDeletionEventCount;
 
+		private int elementCount;
+
 		void reset() {
 			implicitDeletionEventCount = 0;
 			explicitDeletionEventCount = 0;
+			elementCount = 0;
 		}
 
 		@Override
@@ -544,6 +634,7 @@ public class InteractionContextManagerTest extends AbstractJavaContextTest {
 				} else {
 					implicitDeletionEventCount++;
 				}
+				elementCount += event.getElements().size();
 				break;
 			}
 		}

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Willian Mitsuda and others.
+ * Copyright (c) 2004, 2010 Willian Mitsuda and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -47,9 +47,7 @@ public class OpenTaskAction extends ActionDelegate implements IWorkbenchWindowAc
 		if (result instanceof ITask) {
 			AbstractTask task = (AbstractTask) result;
 			if (dlg.getOpenInBrowser()) {
-				if (TasksUiInternal.isValidUrl(task.getUrl())) {
-					TasksUiUtil.openUrl(task.getUrl());
-				}
+				TasksUiUtil.openWithBrowser(task);
 			} else {
 				TasksUiInternal.refreshAndOpenTaskListElement(task);
 			}

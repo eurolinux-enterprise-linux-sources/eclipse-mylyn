@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009 Hiroyuki Inaba and others.
+ * Copyright (c) 2009, 2010 Hiroyuki Inaba and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -361,8 +361,7 @@ public class SelectToolAction extends Action implements IMenuCreator {
 		gc.setBackground(ButtonFace);
 		gc.fillRectangle(0, 0, x, y);
 		String label = "A"; //$NON-NLS-1$
-		fontData.height = 11;
-		gc.setFont(new Font(display, fontData));
+		gc.setFont(new Font(display, new FontData(fontData.getName(), 11, fontData.getStyle())));
 		gc.setForeground(new Color(display, rgb));
 		Point sz = gc.textExtent(label);
 		gc.drawText(label, (x - sz.x) / 2, (y - sz.y) / 2 + 1, true);

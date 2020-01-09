@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -82,7 +82,7 @@ public class ResultUpdaterTest extends TestCase implements ISearchPluginTest {
 		//
 		// we should get all results since we are searching the entire workspace
 		searchNode = notifier.getElement(type1.getHandleIdentifier(), JavaStructureBridge.CONTENT_TYPE);
-		helper.searchResultsNotNull(notifier, searchNode, dos, 3);
+		helper.searchResultsNotNull(notifier, searchNode, dos, 3, false);
 		//
 		//
 
@@ -107,7 +107,7 @@ public class ResultUpdaterTest extends TestCase implements ISearchPluginTest {
 		//
 		// we should get all results since we are searching the entire workspace
 		searchNode = notifier.getElement(type1.getHandleIdentifier(), JavaStructureBridge.CONTENT_TYPE);
-		helper.searchResultsNotNull(notifier, searchNode, dos, 3);
+		helper.searchResultsNotNull(notifier, searchNode, dos, 3, false);
 		//
 		//
 

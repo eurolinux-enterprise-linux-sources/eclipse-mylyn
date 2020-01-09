@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -33,7 +33,7 @@ import org.osgi.framework.BundleContext;
 /**
  * The activator class controls the plug-in life cycle
  */
-// TODO 3.4 change the name of this class to avoid the word "focused"
+// TODO 3.5 change the name of this class to avoid the word "focused"
 public class FocusedTeamUiPlugin extends AbstractUIPlugin {
 
 	public static final String ID_PLUGIN = "org.eclipse.mylyn.team.ui"; //$NON-NLS-1$

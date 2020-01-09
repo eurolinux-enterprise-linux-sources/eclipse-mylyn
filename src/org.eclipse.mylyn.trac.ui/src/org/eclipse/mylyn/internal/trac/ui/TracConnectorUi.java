@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2008 Steffen Pingel and others.
+ * Copyright (c) 2006, 2010 Steffen Pingel and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -18,6 +18,7 @@ import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.text.hyperlink.IHyperlink;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.wizard.IWizard;
+import org.eclipse.jface.wizard.IWizardPage;
 import org.eclipse.mylyn.internal.trac.core.TracCorePlugin;
 import org.eclipse.mylyn.internal.trac.core.TracRepositoryConnector;
 import org.eclipse.mylyn.internal.trac.core.TracRepositoryConnector.TaskKind;
@@ -29,6 +30,7 @@ import org.eclipse.mylyn.tasks.core.ITask;
 import org.eclipse.mylyn.tasks.core.ITaskComment;
 import org.eclipse.mylyn.tasks.core.ITaskMapping;
 import org.eclipse.mylyn.tasks.core.TaskRepository;
+import org.eclipse.mylyn.tasks.core.data.TaskAttachmentModel;
 import org.eclipse.mylyn.tasks.ui.AbstractRepositoryConnectorUi;
 import org.eclipse.mylyn.tasks.ui.LegendElement;
 import org.eclipse.mylyn.tasks.ui.wizards.ITaskRepositoryPage;
@@ -36,6 +38,7 @@ import org.eclipse.mylyn.tasks.ui.wizards.ITaskSearchPage;
 import org.eclipse.mylyn.tasks.ui.wizards.NewTaskWizard;
 import org.eclipse.mylyn.tasks.ui.wizards.NewWebTaskWizard;
 import org.eclipse.mylyn.tasks.ui.wizards.RepositoryQueryWizard;
+import org.eclipse.mylyn.tasks.ui.wizards.TaskAttachmentPage;
 import org.eclipse.osgi.util.NLS;
 
 /**
@@ -103,6 +106,8 @@ public class TracConnectorUi extends AbstractRepositoryConnectorUi {
 			return TracImages.OVERLAY_DEFECT;
 		} else if (taskKind == TaskKind.ENHANCEMENT) {
 			return TracImages.OVERLAY_ENHANCEMENT;
+		} else if (taskKind == TaskKind.STORY) {
+			return TracImages.OVERLAY_STORY;
 		} else if (taskKind == TaskKind.TASK) {
 			return null;
 		}
@@ -123,11 +128,19 @@ public class TracConnectorUi extends AbstractRepositoryConnectorUi {
 		if (taskComment == null) {
 			return NLS.bind(Messages.TracConnectorUi_Replying_to__ticket_X_X_, task.getTaskKey(), task.getOwner());
 		} else if (includeTask) {
-			return NLS.bind(Messages.TracConnectorUi_Replying_to__comment_ticket_X_X_X_, new Object[] {
-					task.getTaskKey(), taskComment.getNumber(), taskComment.getAuthor().getPersonId() });
+			return NLS.bind(Messages.TracConnectorUi_Replying_to__comment_ticket_X_X_X_,
+					new Object[] { task.getTaskKey(), taskComment.getNumber(), taskComment.getAuthor().getPersonId() });
 		} else {
 			return NLS.bind(Messages.TracConnectorUi_Replying_to__comment_X_X_, taskComment.getNumber(),
 					taskComment.getAuthor().getPersonId());
 		}
 	}
+
+	@Override
+	public IWizardPage getTaskAttachmentPage(TaskAttachmentModel model) {
+		TaskAttachmentPage page = new TaskAttachmentPage(model);
+		page.setNeedsReplaceExisting(true);
+		return page;
+	}
+
 }

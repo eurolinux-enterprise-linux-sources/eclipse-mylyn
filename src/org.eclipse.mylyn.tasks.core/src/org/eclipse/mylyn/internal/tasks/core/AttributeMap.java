@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2008 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -24,7 +24,7 @@ public class AttributeMap {
 	private final Map<String, String> attributes;
 
 	public AttributeMap() {
-		attributes = new HashMap<String, String>();
+		attributes = new HashMap<String, String>(4);
 	}
 
 	public String getAttribute(String key) {
@@ -40,7 +40,7 @@ public class AttributeMap {
 		if (value == null) {
 			attributes.remove(key);
 		} else {
-			attributes.put(key, value);
+			attributes.put(key.intern(), value.intern());
 		}
 	}
 

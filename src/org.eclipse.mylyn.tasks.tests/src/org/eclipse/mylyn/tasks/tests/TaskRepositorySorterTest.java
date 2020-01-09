@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2008 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -47,6 +47,20 @@ public class TaskRepositorySorterTest extends TestCase {
 		TaskRepository t2 = new TaskRepository("t", "http://b");
 		TaskRepository t3 = new TaskRepository("t", "http://c");
 		assertTrue(sorter.compare(null, t1, t2) < 0);
+		assertTrue(sorter.compare(null, t2, t3) < 0);
+		assertTrue(sorter.compare(null, t3, t1) > 0);
+	}
+
+	public void testUrlSortingWithEmptyLabels() {
+		TaskRepositoriesSorter sorter = new TaskRepositoriesSorter();
+		TaskRepository t1 = new TaskRepository("t", "http://a");
+		t1.setProperty(IRepositoryConstants.PROPERTY_LABEL, "");
+		TaskRepository t2 = new TaskRepository("t", "http://b");
+		t2.setProperty(IRepositoryConstants.PROPERTY_LABEL, "");
+		TaskRepository t3 = new TaskRepository("t", "http://c");
+		t3.setProperty(IRepositoryConstants.PROPERTY_LABEL, "");
+		assertTrue(sorter.compare(null, t1, t2) < 0);
+		assertTrue(sorter.compare(null, t2, t3) < 0);
 		assertTrue(sorter.compare(null, t3, t1) > 0);
 	}
 

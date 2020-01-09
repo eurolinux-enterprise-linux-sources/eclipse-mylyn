@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -18,8 +18,8 @@ import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
-import java.net.Socket;
 import java.net.Proxy.Type;
+import java.net.Socket;
 import java.text.ParseException;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -145,8 +145,20 @@ public class WebUtil {
 			}
 		}
 
-		sb.append(" "); //$NON-NLS-1$
-		sb.append(DefaultHttpParams.getDefaultParams().getParameter(HttpMethodParams.USER_AGENT).toString().split("-")[1]); //$NON-NLS-1$
+		Object parameter = DefaultHttpParams.getDefaultParams().getParameter(HttpMethodParams.USER_AGENT);
+		if (parameter != null) {
+			String userAgent = parameter.toString();
+			if (userAgent != null) {
+				// shorten default "Jakarta Commons-HttpClient/3.1"
+				if (userAgent.startsWith("Jakarta Commons-")) { //$NON-NLS-1$
+					sb.append(" "); //$NON-NLS-1$
+					sb.append(userAgent.substring(16));
+				} else {
+					sb.append(" "); //$NON-NLS-1$
+					sb.append(parameter.toString());
+				}
+			}
+		}
 
 		sb.append(" Java/"); //$NON-NLS-1$
 		sb.append(System.getProperty("java.version")); //$NON-NLS-1$
@@ -195,11 +207,13 @@ public class WebUtil {
 		client.getHttpConnectionManager().getParams().setConnectionTimeout(WebUtil.CONNNECT_TIMEOUT);
 		// FIXME fix connection leaks
 		if (TEST_MODE) {
-			client.getHttpConnectionManager().getParams().setMaxConnectionsPerHost(
-					HostConfiguration.ANY_HOST_CONFIGURATION, 2);
+			client.getHttpConnectionManager()
+					.getParams()
+					.setMaxConnectionsPerHost(HostConfiguration.ANY_HOST_CONFIGURATION, 2);
 		} else {
-			client.getHttpConnectionManager().getParams().setMaxConnectionsPerHost(
-					HostConfiguration.ANY_HOST_CONFIGURATION, 100);
+			client.getHttpConnectionManager()
+					.getParams()
+					.setMaxConnectionsPerHost(HostConfiguration.ANY_HOST_CONFIGURATION, 100);
 			client.getHttpConnectionManager().getParams().setMaxTotalConnections(1000);
 		}
 	}
@@ -549,7 +563,7 @@ public class WebUtil {
 					}
 				}
 			} finally {
-				method.releaseConnection();
+				WebUtil.releaseConnection(method, monitor);
 			}
 		} finally {
 			monitor.done();
@@ -774,6 +788,25 @@ public class WebUtil {
 			}
 		}
 		return Proxy.NO_PROXY;
+	}
+
+	/**
+	 * Releases the connection used by <code>method</code>. If <code>monitor</code> is cancelled the connection is
+	 * aborted to avoid blocking.
+	 * 
+	 * @since 3.4
+	 */
+	public static void releaseConnection(HttpMethodBase method, IProgressMonitor monitor) {
+		if (monitor != null && monitor.isCanceled()) {
+			// force a connection close on cancel to avoid blocking to do reading the remainder of the response 
+			method.abort();
+		} else {
+			try {
+				method.releaseConnection();
+			} catch (NullPointerException e) {
+				// ignore, see bug 255417
+			}
+		}
 	}
 
 }

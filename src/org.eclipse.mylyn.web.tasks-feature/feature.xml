@@ -12,7 +12,7 @@
 <feature
       id="org.eclipse.mylyn.web.tasks_feature"
       label="%featureName"
-      version="3.3.2.qualifier"
+      version="3.4.2.qualifier"
       provider-name="%providerName"
       plugin="org.eclipse.mylyn">
 
@@ -33,24 +33,17 @@
    </url>
 
    <requires>
-      <import plugin="com.sun.syndication" version="0.9.0" match="greaterOrEqual"/>
-      <import plugin="org.jdom" version="1.0.0" match="greaterOrEqual"/>
-      <import plugin="org.eclipse.core.runtime"/>
-      <import plugin="org.eclipse.ui"/>
-      <import plugin="org.eclipse.ui.forms"/>
-      <import plugin="org.eclipse.mylyn.tasks.core" version="3.0.0" match="compatible"/>
-      <import plugin="org.eclipse.mylyn.tasks.ui" version="3.0.0" match="compatible"/>
-      <import feature="org.eclipse.mylyn_feature" version="3.3.2.mylynQualifier" match="equivalent"/>
-      <import plugin="org.eclipse.mylyn.commons.core" version="3.0.0" match="compatible"/>
-      <import plugin="org.eclipse.mylyn.commons.net" version="3.0.0" match="compatible"/>
-      <import plugin="org.eclipse.mylyn.commons.ui" version="3.0.0" match="compatible"/>
+      <import plugin="org.eclipse.mylyn.commons.core" version="3.2.0" match="compatible"/>
+      <import plugin="org.eclipse.mylyn.commons.net" version="3.2.0" match="compatible"/>
+      <import plugin="org.eclipse.mylyn.commons.ui" version="3.2.0" match="compatible"/>
+      <import feature="org.eclipse.mylyn_feature" version="3.4.1" match="equivalent"/>
    </requires>
 
    <plugin
          id="org.eclipse.mylyn.web.tasks"
          download-size="0"
          install-size="0"
-         version="3.3.2.qualifier"
+         version="0.0.0"
          unpack="false"/>
 
    <plugin

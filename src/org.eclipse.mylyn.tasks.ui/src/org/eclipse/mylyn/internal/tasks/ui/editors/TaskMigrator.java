@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -15,8 +15,10 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Date;
 
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.ISafeRunnable;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.NullProgressMonitor;
+import org.eclipse.core.runtime.SafeRunner;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.mylyn.commons.core.StatusHandler;
 import org.eclipse.mylyn.context.core.ContextCore;
@@ -26,7 +28,9 @@ import org.eclipse.mylyn.internal.tasks.core.DateRange;
 import org.eclipse.mylyn.internal.tasks.ui.ChangeActivityHandleOperation;
 import org.eclipse.mylyn.internal.tasks.ui.TasksUiPlugin;
 import org.eclipse.mylyn.internal.tasks.ui.util.TasksUiInternal;
+import org.eclipse.mylyn.tasks.core.AbstractRepositoryConnector;
 import org.eclipse.mylyn.tasks.core.ITask;
+import org.eclipse.mylyn.tasks.core.TaskMigrationEvent;
 import org.eclipse.mylyn.tasks.ui.TasksUi;
 import org.eclipse.mylyn.tasks.ui.TasksUiUtil;
 import org.eclipse.mylyn.tasks.ui.editors.TaskEditor;
@@ -49,9 +53,15 @@ public class TaskMigrator {
 
 	private TaskEditor editor;
 
+	private boolean migrateDueDate = true;
+
 	public TaskMigrator(ITask oldTask) {
 		this.oldTask = oldTask;
 		this.openEditors = true;
+	}
+
+	public void setMigrateDueDate(boolean migrateDueDate) {
+		this.migrateDueDate = migrateDueDate;
 	}
 
 	public boolean openEditors() {
@@ -84,6 +94,23 @@ public class TaskMigrator {
 	 */
 	public void execute(ITask newTask) {
 		copyProperties(newTask);
+
+		// invoke participants
+		final AbstractRepositoryConnector connector = TasksUi.getRepositoryConnector(newTask.getConnectorKind());
+		if (connector != null) {
+			final TaskMigrationEvent event = new TaskMigrationEvent(oldTask, newTask);
+			SafeRunner.run(new ISafeRunnable() {
+				public void handleException(Throwable e) {
+					StatusHandler.log(new Status(IStatus.ERROR, TasksUiPlugin.ID_PLUGIN,
+							"Unexpected error in task migrator: " //$NON-NLS-1$
+									+ connector.getClass(), e));
+				}
+
+				public void run() throws Exception {
+					connector.migrateTask(event);
+				}
+			});
+		}
 
 		try {
 			// temporarily disable auto editor management
@@ -159,7 +186,9 @@ public class TaskMigrator {
 			DateRange scheduledDate = ((AbstractTask) oldTask).getScheduledForDate();
 			TasksUiPlugin.getTaskActivityManager().setScheduledFor((AbstractTask) newTask, scheduledDate);
 			Date dueDate = ((AbstractTask) oldTask).getDueDate();
-			TasksUiPlugin.getTaskActivityManager().setDueDate(newTask, dueDate);
+			if (migrateDueDate) {
+				TasksUiPlugin.getTaskActivityManager().setDueDate(newTask, dueDate);
+			}
 			((AbstractTask) newTask).setEstimatedTimeHours(((AbstractTask) oldTask).getEstimatedTimeHours());
 		}
 

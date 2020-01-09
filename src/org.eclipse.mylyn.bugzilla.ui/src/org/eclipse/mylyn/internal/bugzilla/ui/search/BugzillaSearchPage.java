@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -19,6 +19,10 @@ import java.net.URLEncoder;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -36,6 +40,7 @@ import org.eclipse.jface.fieldassist.ComboContentAdapter;
 import org.eclipse.jface.fieldassist.ContentProposalAdapter;
 import org.eclipse.jface.fieldassist.IContentProposalProvider;
 import org.eclipse.jface.operation.IRunnableWithProgress;
+import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.jface.viewers.ILabelProvider;
 import org.eclipse.jface.window.Window;
 import org.eclipse.mylyn.commons.core.CoreUtil;
@@ -44,7 +49,11 @@ import org.eclipse.mylyn.internal.bugzilla.core.BugzillaRepositoryConnector;
 import org.eclipse.mylyn.internal.bugzilla.core.IBugzillaConstants;
 import org.eclipse.mylyn.internal.bugzilla.core.RepositoryConfiguration;
 import org.eclipse.mylyn.internal.bugzilla.ui.BugzillaUiPlugin;
-import org.eclipse.mylyn.internal.bugzilla.ui.editor.KeywordsDialog;
+import org.eclipse.mylyn.internal.provisional.commons.ui.WorkbenchUtil;
+import org.eclipse.mylyn.internal.provisional.commons.ui.dialogs.AbstractInPlaceDialog;
+import org.eclipse.mylyn.internal.provisional.commons.ui.dialogs.IInPlaceDialogListener;
+import org.eclipse.mylyn.internal.provisional.commons.ui.dialogs.InPlaceCheckBoxTreeDialog;
+import org.eclipse.mylyn.internal.provisional.commons.ui.dialogs.InPlaceDialogEvent;
 import org.eclipse.mylyn.internal.tasks.ui.util.WebBrowserDialog;
 import org.eclipse.mylyn.tasks.core.IRepositoryQuery;
 import org.eclipse.mylyn.tasks.core.RepositoryStatus;
@@ -58,6 +67,7 @@ import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.ModifyListener;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -75,6 +85,10 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.fieldassist.ContentAssistCommandAdapter;
+import org.eclipse.ui.forms.events.ExpansionAdapter;
+import org.eclipse.ui.forms.events.ExpansionEvent;
+import org.eclipse.ui.forms.widgets.ExpandableComposite;
+import org.eclipse.ui.forms.widgets.FormToolkit;
 import org.eclipse.ui.progress.IProgressService;
 import org.eclipse.ui.texteditor.ITextEditorActionDefinitionIds;
 
@@ -84,11 +98,13 @@ import org.eclipse.ui.texteditor.ITextEditorActionDefinitionIds;
  * @author Mik Kersten (hardening of prototype)
  * @author Frank Becker
  */
+@SuppressWarnings("restriction")
 public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements Listener {
 
-	private static final int HEIGHT_ATTRIBUTE_COMBO = 70;
+	private static final int HEIGHT_ATTRIBUTE_COMBO = 30;
 
-	// protected Combo repositoryCombo = null;
+	/** Expandable composites are indented by 6 pixels by default. */
+	private static final int INDENT = -6;
 
 	private static ArrayList<BugzillaSearchData> previousSummaryPatterns = new ArrayList<BugzillaSearchData>(20);
 
@@ -258,6 +274,10 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 
 	private RepositoryConfiguration repositoryConfiguration;
 
+	private final FormToolkit toolkit;
+
+	private ExpandableComposite moreOptionsExpandComposite;
+
 	private final SelectionAdapter updateActionSelectionAdapter = new SelectionAdapter() {
 		@Override
 		public void widgetSelected(SelectionEvent e) {
@@ -300,115 +320,115 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 
 	public BugzillaSearchPage(TaskRepository repository) {
 		super(Messages.BugzillaSearchPage_Bugzilla_Query, repository);
-		// setTitle(TITLE);
-		// setDescription(DESCRIPTION);
-		// setImageDescriptor(TaskListImages.BANNER_REPOSITORY);
-		// setPageComplete(false);
-//		try {
-//			repositoryConfiguration = BugzillaCorePlugin.getRepositoryConfiguration(repository, false);
-//		} catch (final CoreException e) {
-//			PlatformUI.getWorkbench().getDisplay().asyncExec(new Runnable() {
-//				public void run() {
-//					MessageDialog.openError(Display.getDefault().getActiveShell(), "Bugzilla Search Page",
-//							"Unable to get configuration. Ensure proper repository configuration in "
-//									+ TasksUiPlugin.LABEL_VIEW_REPOSITORIES + ".\n\n");
-//				}
-//			});
-//		}
+
+		toolkit = new FormToolkit(Display.getCurrent());
 	}
 
 	public BugzillaSearchPage(TaskRepository repository, IRepositoryQuery origQuery) {
 		super(Messages.BugzillaSearchPage_Bugzilla_Query, repository, origQuery);
 		originalQuery = origQuery;
 		setDescription(Messages.BugzillaSearchPage_Select_the_Bugzilla_query_parameters);
-		// setTitle(TITLE);
-		// setDescription(DESCRIPTION);
-		// setPageComplete(false);
-//		try {
-//			repositoryConfiguration = BugzillaCorePlugin.getRepositoryConfiguration(repository, false);
-//		} catch (final CoreException e) {
-//			PlatformUI.getWorkbench().getDisplay().asyncExec(new Runnable() {
-//				public void run() {
-//					MessageDialog.openError(Display.getDefault().getActiveShell(), "Bugzilla Search Page",
-//							"Unable to get configuration. Ensure proper repository configuration in "
-//									+ TasksUiPlugin.LABEL_VIEW_REPOSITORIES + ".\n\n");
-//				}
-//			});
-//		}
+		toolkit = new FormToolkit(Display.getCurrent());
 	}
 
 	public void createControl(Composite parent) {
+		initializeDialogUnits(parent);
 		readConfiguration();
 
 		Composite control = new Composite(parent, SWT.NONE);
 		GridLayout layout = new GridLayout(1, false);
 		layout.marginHeight = 0;
 		control.setLayout(layout);
-		control.setLayoutData(new GridData(GridData.FILL_BOTH | GridData.GRAB_HORIZONTAL));
-
-//		if (scontainer == null) {
-		// Not presenting in search pane so want query title
-//			super.createControl(control);
-//			Label lblName = new Label(control, SWT.NONE);
-//			final GridData gridData = new GridData();
-//			lblName.setLayoutData(gridData);
-//			lblName.setText("Query Title:");
-//
-//			title = new Text(control, SWT.BORDER);
-//			title.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 2, 1));
-//			title.addModifyListener(new ModifyListener() {
-//				public void modifyText(ModifyEvent e) {
-//					setPageComplete(isPageComplete());
-//				}
-//			});
-//		}
-
-		// else {
-		// // if (repository == null) {
-		// // search pane so add repository selection
-		//      createRepositoryGroup(control);
-		//    }
+		control.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 		createOptionsGroup(control);
-		createSearchGroup(control);
-
-		// createSaveQuery(control);
-		// createMaxHits(control);
-		// input = new SavedQueryFile(BugzillaPlugin.getDefault().getStateLocation().toString(), "/queries");
-		// createUpdate(control);
-		// if (originalQuery != null) {
-		// try {
-		//   updateDefaults(originalQuery.getQueryUrl(), String.valueOf(originalQuery.getMaxHits()));
-		// } catch (UnsupportedEncodingException e) {
-		//   // ignore
-		// }
-		// }
+		createButtons(control);
 		Dialog.applyDialogFont(control);
 		setControl(control);
 		PlatformUI.getWorkbench().getHelpSystem().setHelp(control, BugzillaUiPlugin.SEARCH_PAGE_CONTEXT);
 		restoreBounds();
 	}
 
-	protected void createOptionsGroup(Composite control) {
-		GridLayout sashFormLayout = new GridLayout();
-		sashFormLayout.numColumns = 4;
-		sashFormLayout.marginHeight = 5;
-		sashFormLayout.marginWidth = 5;
-		sashFormLayout.horizontalSpacing = 5;
+	private void createButtons(Composite control) {
+		Composite buttonComposite = new Composite(control, SWT.NONE);
+		GridLayout layout = new GridLayout(2, false);
+		layout.marginWidth = 0;
+		buttonComposite.setLayout(layout);
+		GridData g = new GridData(GridData.FILL_HORIZONTAL);
+		Button clearButton = new Button(buttonComposite, SWT.PUSH);
+		clearButton.setText(Messages.BugzillaSearchPage_ClearFields);
+		clearButton.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, true, false));
+		clearButton.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent e) {
+				product.deselectAll();
+				component.deselectAll();
+				version.deselectAll();
+				target.deselectAll();
+				status.deselectAll();
+				resolution.deselectAll();
+				severity.deselectAll();
+				priority.deselectAll();
+				hardware.deselectAll();
+				os.deselectAll();
+				summaryOperation.select(0);
+				commentOperation.select(0);
+				emailOperation.select(0);
 
-		final Composite composite = new Composite(control, SWT.NONE);
-		composite.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false));
-		final GridLayout gridLayout = new GridLayout();
-		gridLayout.marginBottom = 8;
-		gridLayout.marginHeight = 0;
-		gridLayout.marginWidth = 0;
-		gridLayout.numColumns = 4;
-		composite.setLayout(gridLayout);
+				for (Button emailButton : emailButtons) {
+					emailButton.setSelection(false);
+				}
+				summaryPattern.setText(""); //$NON-NLS-1$
+				commentPattern.setText(""); //$NON-NLS-1$
+				emailPattern.setText(""); //$NON-NLS-1$
+				emailOperation2.select(0);
+				for (Button element : emailButtons2) {
+					element.setSelection(false);
+				}
+				emailPattern2.setText(""); //$NON-NLS-1$
+				keywords.setText(""); //$NON-NLS-1$
+				keywordsOperation.select(0);
+				daysText.setText(""); //$NON-NLS-1$
+			}
+		});
+
+		Button updateButton = new Button(buttonComposite, SWT.PUSH);
+		updateButton.setText(Messages.BugzillaSearchPage_Update_Attributes_from_Repository);
+		updateButton.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, true, false));
+		updateButton.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent e) {
+				if (getTaskRepository() != null) {
+					updateConfiguration(true);
+				} else {
+					MessageDialog.openInformation(Display.getCurrent().getActiveShell(),
+							IBugzillaConstants.TITLE_MESSAGE_DIALOG,
+							Messages.BugzillaSearchPage_No_repository_available);
+				}
+			}
+		});
+
+		buttonComposite.setLayoutData(g);
+		Dialog.applyDialogFont(buttonComposite);
+
+	}
+
+	private void createOptionsGroup(Composite control) {
+		final Composite basicComposite = new Composite(control, SWT.NONE);
+		GridLayout layout = new GridLayout(4, false);
+		layout.marginHeight = 0;
+		layout.marginWidth = 0;
+		layout.marginRight = 5;
+		basicComposite.setLayout(layout);
+		GridData g = new GridData(GridData.FILL, GridData.FILL, true, true);
+		g.widthHint = 500;
+		basicComposite.setLayoutData(g);
+		Dialog.applyDialogFont(basicComposite);
 
 		if (!inSearchContainer()) {
-			final Label queryTitleLabel = new Label(composite, SWT.NONE);
+			final Label queryTitleLabel = new Label(basicComposite, SWT.NONE);
 			queryTitleLabel.setText(Messages.BugzillaSearchPage_Query_Title);
 
-			queryTitle = new Text(composite, SWT.BORDER);
+			queryTitle = new Text(basicComposite, SWT.BORDER);
 			queryTitle.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1));
 			if (originalQuery != null) {
 				queryTitle.setText(originalQuery.getSummary());
@@ -416,15 +436,65 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 			queryTitle.addModifyListener(new ModifyListenerImplementation());
 			queryTitle.setFocus();
 		}
+		createBasicComposite(basicComposite);
 
+		moreOptionsExpandComposite = toolkit.createExpandableComposite(control, ExpandableComposite.COMPACT
+				| ExpandableComposite.TWISTIE | ExpandableComposite.TITLE_BAR);
+		moreOptionsExpandComposite.setFont(JFaceResources.getFontRegistry().getBold(JFaceResources.DIALOG_FONT));
+		moreOptionsExpandComposite.setBackground(null);
+		moreOptionsExpandComposite.setText(Messages.BugzillaSearchPage_More_Options);
+		moreOptionsExpandComposite.setLayout(new GridLayout(3, false));
+		g = new GridData(GridData.FILL, GridData.FILL, true, true);
+		g.horizontalSpan = 4;
+		g.horizontalIndent = INDENT;
+		moreOptionsExpandComposite.setLayoutData(g);
+		moreOptionsExpandComposite.addExpansionListener(new ExpansionAdapter() {
+			@Override
+			public void expansionStateChanged(ExpansionEvent e) {
+				if ((Boolean) e.data == true) {
+					Point minSize = getControl().getShell().getMinimumSize();
+					minSize.y = 660;
+					getControl().getShell().setMinimumSize(minSize);
+				} else {
+					Point minSize = getControl().getShell().getMinimumSize();
+					minSize.y = 450;
+					getControl().getShell().setMinimumSize(minSize);
+				}
+				Shell shell = getShell();
+				shell.pack();
+				Point shellSize = shell.getSize();
+				shellSize.x++;
+				shell.setSize(shellSize);
+				shellSize.x--;
+				shell.setSize(shellSize);
+			}
+		});
+
+		Composite moreOptionsComposite = new Composite(moreOptionsExpandComposite, SWT.NULL);
+		GridLayout optionsLayout = new GridLayout(4, false);
+		optionsLayout.marginHeight = 0;
+		optionsLayout.marginWidth = 0;
+		moreOptionsComposite.setLayout(optionsLayout);
+
+		Dialog.applyDialogFont(moreOptionsComposite);
+		moreOptionsExpandComposite.setClient(moreOptionsComposite);
+
+		createMoreOptionsComposite(moreOptionsComposite);
+		createSearchGroup(moreOptionsComposite);
+		if (inSearchContainer()) {
+			control.getShell().setMinimumSize(new Point(610, 450));
+		} else {
+			control.getShell().setMinimumSize(new Point(590, 450));
+		}
+	}
+
+	private void createBasicComposite(Composite basicComposite) {
 		// Info text
-		Label labelSummary = new Label(composite, SWT.LEFT);
+		Label labelSummary = new Label(basicComposite, SWT.LEFT);
 		labelSummary.setText(Messages.BugzillaSearchPage_Summary);
-//		labelSummary.setLayoutData(new GridData(LABEL_WIDTH, SWT.DEFAULT));
-		//labelSummary.setLayoutData(new GridData(GridData.HORIZONTAL_ALIGN_END));
 
 		// Pattern combo
-		summaryPattern = new Combo(composite, SWT.SINGLE | SWT.BORDER);
+		summaryPattern = new Combo(basicComposite, SWT.SINGLE | SWT.BORDER);
 		summaryPattern.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1));
 		summaryPattern.addModifyListener(new ModifyListenerImplementation());
 		summaryPattern.addSelectionListener(new SelectionAdapter() {
@@ -434,39 +504,17 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 			}
 		});
 
-		summaryOperation = new Combo(composite, SWT.SINGLE | SWT.READ_ONLY | SWT.BORDER);
+		summaryOperation = new Combo(basicComposite, SWT.SINGLE | SWT.READ_ONLY | SWT.BORDER);
 		summaryOperation.setItems(patternOperationText);
 		summaryOperation.setText(patternOperationText[0]);
 		summaryOperation.select(0);
-
-		// Info text
-		Label labelComment = new Label(composite, SWT.LEFT);
-		labelComment.setText(Messages.BugzillaSearchPage_Comment);
-		//labelComment.setLayoutData(new GridData(GridData.HORIZONTAL_ALIGN_END));
-
-		// Comment pattern combo
-		commentPattern = new Combo(composite, SWT.SINGLE | SWT.BORDER);
-		commentPattern.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false, 2, 1));
-		commentPattern.addModifyListener(new ModifyListenerImplementation());
-		commentPattern.addSelectionListener(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent e) {
-				handleWidgetSelected(commentPattern, commentOperation, previousCommentPatterns);
-			}
-		});
-
-		commentOperation = new Combo(composite, SWT.SINGLE | SWT.READ_ONLY | SWT.BORDER);
-		commentOperation.setItems(patternOperationText);
-		commentOperation.setText(patternOperationText[0]);
-		commentOperation.select(0);
-
-		Label labelEmail = new Label(composite, SWT.LEFT);
+		Label labelEmail = new Label(basicComposite, SWT.LEFT);
 		labelEmail.setText(Messages.BugzillaSearchPage_Email);
 		//labelEmail.setLayoutData(new GridData(GridData.HORIZONTAL_ALIGN_END));
 
 		// pattern combo
-		emailPattern = new Combo(composite, SWT.SINGLE | SWT.BORDER);
-		emailPattern.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		emailPattern = new Combo(basicComposite, SWT.SINGLE | SWT.BORDER);
+		emailPattern.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 2, 1));
 		emailPattern.addModifyListener(new ModifyListenerImplementation());
 		emailPattern.addSelectionListener(new SelectionAdapter() {
 			@Override
@@ -484,8 +532,15 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 		adapter.setLabelProvider(proposalLabelProvider);
 		adapter.setProposalAcceptanceStyle(ContentProposalAdapter.PROPOSAL_REPLACE);
 
-		Composite emailComposite = new Composite(composite, SWT.NONE);
-		emailComposite.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
+		// operation combo
+		emailOperation = new Combo(basicComposite, SWT.SINGLE | SWT.READ_ONLY | SWT.BORDER);
+		emailOperation.setItems(emailOperationText);
+		emailOperation.setText(emailOperationText[0]);
+		emailOperation.select(0);
+
+		new Label(basicComposite, SWT.NONE);
+		Composite emailComposite = new Composite(basicComposite, SWT.NONE);
+		emailComposite.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, false, false, 2, 1));
 		GridLayout emailLayout = new GridLayout();
 		emailLayout.marginWidth = 0;
 		emailLayout.marginHeight = 0;
@@ -509,124 +564,26 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 		button4.setText(Messages.BugzillaSearchPage_qacontact);
 
 		emailButtons = new Button[] { button0, button1, button2, button3, button4 };
+		new Label(basicComposite, SWT.NONE);
+		GridLayout sashFormLayout = new GridLayout();
+		sashFormLayout.numColumns = 4;
+		sashFormLayout.marginHeight = 5;
+		sashFormLayout.marginWidth = 5;
+		sashFormLayout.horizontalSpacing = 5;
 
-		// operation combo
-		emailOperation = new Combo(composite, SWT.SINGLE | SWT.READ_ONLY | SWT.BORDER);
-		emailOperation.setItems(emailOperationText);
-		emailOperation.setText(emailOperationText[0]);
-		emailOperation.select(0);
-
-		// Email2
-
-		Label labelEmail2 = new Label(composite, SWT.LEFT);
-		labelEmail2.setText(Messages.BugzillaSearchPage_Email_2);
-		//labelEmail.setLayoutData(new GridData(GridData.HORIZONTAL_ALIGN_END));
-
-		// pattern combo
-		emailPattern2 = new Combo(composite, SWT.SINGLE | SWT.BORDER);
-		emailPattern2.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-		emailPattern2.addModifyListener(new ModifyListenerImplementation());
-		emailPattern2.addSelectionListener(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent e) {
-				handleWidgetSelected(emailPattern2, emailOperation2, previousEmailPatterns2);
-			}
-		});
-		ContentAssistCommandAdapter adapter2 = new ContentAssistCommandAdapter(emailPattern2,
-				new ComboContentAdapter(), proposalProvider, ITextEditorActionDefinitionIds.CONTENT_ASSIST_PROPOSALS,
-				new char[0], true);
-		adapter.setLabelProvider(proposalLabelProvider);
-		adapter2.setProposalAcceptanceStyle(ContentProposalAdapter.PROPOSAL_REPLACE);
-
-		Composite emailComposite2 = new Composite(composite, SWT.NONE);
-		emailComposite2.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
-		GridLayout emailLayout2 = new GridLayout();
-		emailLayout2.marginWidth = 0;
-		emailLayout2.marginHeight = 0;
-		emailLayout2.horizontalSpacing = 2;
-		emailLayout2.numColumns = 5;
-		emailComposite2.setLayout(emailLayout2);
-
-		Button e2button0 = new Button(emailComposite2, SWT.CHECK);
-		e2button0.setText(Messages.BugzillaSearchPage_owner);
-
-		Button e2button1 = new Button(emailComposite2, SWT.CHECK);
-		e2button1.setText(Messages.BugzillaSearchPage_reporter);
-
-		Button e2button2 = new Button(emailComposite2, SWT.CHECK);
-		e2button2.setText(Messages.BugzillaSearchPage_cc);
-
-		Button e2button3 = new Button(emailComposite2, SWT.CHECK);
-		e2button3.setText(Messages.BugzillaSearchPage_commenter);
-
-		Button e2button4 = new Button(emailComposite2, SWT.CHECK);
-		e2button4.setText(Messages.BugzillaSearchPage_qacontact);
-
-		emailButtons2 = new Button[] { e2button0, e2button1, e2button2, e2button3, e2button4 };
-
-		// operation combo
-		emailOperation2 = new Combo(composite, SWT.SINGLE | SWT.READ_ONLY | SWT.BORDER);
-		emailOperation2.setItems(emailOperationText);
-		emailOperation2.setText(emailOperationText[0]);
-		emailOperation2.select(0);
-
-		/////
-
-		Label labelKeywords = new Label(composite, SWT.NONE);
-		labelKeywords.setText(Messages.BugzillaSearchPage_Keywords);
-//		labelKeywords.setLayoutData(new GridData(LABEL_WIDTH, SWT.DEFAULT));
-		//labelKeywords.setLayoutData(new GridData(GridData.HORIZONTAL_ALIGN_END));
-
-		Composite keywordsComposite = new Composite(composite, SWT.NONE);
-		keywordsComposite.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false, 3, 1));
-		GridLayout keywordsLayout = new GridLayout();
-		keywordsLayout.marginWidth = 0;
-		keywordsLayout.marginHeight = 0;
-		keywordsLayout.numColumns = 3;
-		keywordsComposite.setLayout(keywordsLayout);
-
-		keywordsOperation = new Combo(keywordsComposite, SWT.READ_ONLY);
-		keywordsOperation.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false));
-		keywordsOperation.setItems(keywordOperationText);
-		keywordsOperation.setText(keywordOperationText[0]);
-		keywordsOperation.select(0);
-
-		keywords = new Combo(keywordsComposite, SWT.NONE);
-		keywords.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-		keywords.addModifyListener(new ModifyListenerImplementation());
-		keywords.addSelectionListener(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent e) {
-				handleWidgetSelected(keywords, keywordsOperation, previousKeywords);
-			}
-		});
-
-		Button keywordsSelectButton = new Button(keywordsComposite, SWT.NONE);
-		keywordsSelectButton.addSelectionListener(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent e) {
-				if (repositoryConfiguration != null && getShell() != null) {
-					KeywordsDialog dialog = new KeywordsDialog(getShell(), keywords.getText(), //
-							repositoryConfiguration.getKeywords());
-					if (dialog.open() == Window.OK) {
-						keywords.setText(dialog.getSelectedKeywordsString());
-					}
-				}
-			}
-		});
-		keywordsSelectButton.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false));
-		keywordsSelectButton.setText(Messages.BugzillaSearchPage_Select_);
-		SashForm sashForm = new SashForm(control, SWT.VERTICAL);
+		SashForm sashForm = new SashForm(basicComposite, SWT.VERTICAL);
 		sashForm.setLayout(sashFormLayout);
-		final GridData gd_sashForm = new GridData(SWT.FILL, SWT.FILL, true, true);
-		gd_sashForm.widthHint = 500;
+		final GridData gd_sashForm = new GridData(SWT.FILL, SWT.FILL, true, true, 4, 1);
+		gd_sashForm.widthHint = 400;
+		gd_sashForm.heightHint = 60;
 		sashForm.setLayoutData(gd_sashForm);
 
 		GridLayout topLayout = new GridLayout();
 		topLayout.numColumns = 4;
 		SashForm topForm = new SashForm(sashForm, SWT.NONE);
 		GridData topLayoutData = new GridData(SWT.FILL, SWT.FILL, true, true, 3, 1);
-		topLayoutData.widthHint = 500;
+		topLayoutData.widthHint = 00;
+		topLayoutData.heightHint = 60;
 		topForm.setLayoutData(topLayoutData);
 		topForm.setLayout(topLayout);
 
@@ -679,7 +636,237 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 		component.setLayoutData(componentLayoutData);
 		component.addSelectionListener(updateActionSelectionAdapter);
 
-		Composite versionComposite = new Composite(topForm, SWT.NONE);
+		Composite statusComposite = new Composite(topForm, SWT.NONE);
+		GridLayout statusLayout = new GridLayout();
+		statusLayout.marginWidth = 0;
+		statusLayout.horizontalSpacing = 0;
+		statusLayout.marginHeight = 0;
+		statusComposite.setLayout(statusLayout);
+
+		Label statusLabel = new Label(statusComposite, SWT.LEFT);
+		statusLabel.setText(Messages.BugzillaSearchPage_Status);
+		statusLabel.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+
+		status = new List(statusComposite, SWT.MULTI | SWT.V_SCROLL | SWT.BORDER);
+		final GridData gd_status = new GridData(SWT.FILL, SWT.FILL, true, true);
+		gd_status.heightHint = HEIGHT_ATTRIBUTE_COMBO;
+		status.setLayoutData(gd_status);
+		status.addSelectionListener(updateActionSelectionAdapter);
+
+		Composite severityComposite = new Composite(topForm, SWT.NONE);
+		GridLayout severityLayout = new GridLayout();
+		severityLayout.marginWidth = 0;
+		severityLayout.marginHeight = 0;
+		severityLayout.horizontalSpacing = 0;
+		severityComposite.setLayout(severityLayout);
+
+		Label severityLabel = new Label(severityComposite, SWT.LEFT);
+		severityLabel.setText(Messages.BugzillaSearchPage_Severity);
+		severityLabel.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+
+		severity = new List(severityComposite, SWT.MULTI | SWT.V_SCROLL | SWT.BORDER);
+		final GridData gd_severity = new GridData(SWT.FILL, SWT.FILL, true, true);
+		gd_severity.heightHint = HEIGHT_ATTRIBUTE_COMBO;
+		severity.setLayoutData(gd_severity);
+		severity.addSelectionListener(updateActionSelectionAdapter);
+
+	}
+
+	private void createMoreOptionsComposite(Composite advancedComposite) {
+
+		// Info text
+		Label labelComment = new Label(advancedComposite, SWT.LEFT);
+		labelComment.setText(Messages.BugzillaSearchPage_Comment);
+		//labelComment.setLayoutData(new GridData(GridData.HORIZONTAL_ALIGN_END));
+
+		// Comment pattern combo
+		commentPattern = new Combo(advancedComposite, SWT.SINGLE | SWT.BORDER);
+		commentPattern.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false, 2, 1));
+		commentPattern.addModifyListener(new ModifyListenerImplementation());
+		commentPattern.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent e) {
+				handleWidgetSelected(commentPattern, commentOperation, previousCommentPatterns);
+			}
+		});
+
+		commentOperation = new Combo(advancedComposite, SWT.SINGLE | SWT.READ_ONLY | SWT.BORDER);
+		commentOperation.setItems(patternOperationText);
+		commentOperation.setText(patternOperationText[0]);
+		commentOperation.select(0);
+
+		Label labelEmail2 = new Label(advancedComposite, SWT.LEFT);
+		labelEmail2.setText(Messages.BugzillaSearchPage_Email_2);
+		//labelEmail.setLayoutData(new GridData(GridData.HORIZONTAL_ALIGN_END));
+
+		// pattern combo
+		emailPattern2 = new Combo(advancedComposite, SWT.SINGLE | SWT.BORDER);
+		emailPattern2.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false, 2, 1));
+		emailPattern2.addModifyListener(new ModifyListenerImplementation());
+		emailPattern2.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent e) {
+				handleWidgetSelected(emailPattern2, emailOperation2, previousEmailPatterns2);
+			}
+		});
+		IContentProposalProvider proposalProvider = TasksUi.getUiFactory().createPersonContentProposalProvider(
+				getTaskRepository());
+		ILabelProvider proposalLabelProvider = TasksUi.getUiFactory().createPersonContentProposalLabelProvider(
+				getTaskRepository());
+		ContentAssistCommandAdapter adapter2 = new ContentAssistCommandAdapter(emailPattern2,
+				new ComboContentAdapter(), proposalProvider, ITextEditorActionDefinitionIds.CONTENT_ASSIST_PROPOSALS,
+				new char[0], true);
+		adapter2.setLabelProvider(proposalLabelProvider);
+		adapter2.setProposalAcceptanceStyle(ContentProposalAdapter.PROPOSAL_REPLACE);
+
+		// operation combo
+		emailOperation2 = new Combo(advancedComposite, SWT.SINGLE | SWT.READ_ONLY | SWT.BORDER);
+		emailOperation2.setItems(emailOperationText);
+		emailOperation2.setText(emailOperationText[0]);
+		emailOperation2.select(0);
+
+		new Label(advancedComposite, SWT.NONE);
+		Composite emailComposite2 = new Composite(advancedComposite, SWT.NONE);
+		emailComposite2.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, false, false, 2, 1));
+		GridLayout emailLayout2 = new GridLayout();
+		emailLayout2.marginWidth = 0;
+		emailLayout2.marginHeight = 0;
+		emailLayout2.horizontalSpacing = 2;
+		emailLayout2.numColumns = 5;
+		emailComposite2.setLayout(emailLayout2);
+
+		Button e2button0 = new Button(emailComposite2, SWT.CHECK);
+		e2button0.setText(Messages.BugzillaSearchPage_owner);
+
+		Button e2button1 = new Button(emailComposite2, SWT.CHECK);
+		e2button1.setText(Messages.BugzillaSearchPage_reporter);
+
+		Button e2button2 = new Button(emailComposite2, SWT.CHECK);
+		e2button2.setText(Messages.BugzillaSearchPage_cc);
+
+		Button e2button3 = new Button(emailComposite2, SWT.CHECK);
+		e2button3.setText(Messages.BugzillaSearchPage_commenter);
+
+		Button e2button4 = new Button(emailComposite2, SWT.CHECK);
+		e2button4.setText(Messages.BugzillaSearchPage_qacontact);
+
+		emailButtons2 = new Button[] { e2button0, e2button1, e2button2, e2button3, e2button4 };
+		new Label(advancedComposite, SWT.NONE);
+		Label keywordsLabel = new Label(advancedComposite, SWT.NONE);
+		keywordsLabel.setText(Messages.BugzillaSearchPage_Keywords);
+
+		Composite keywordsComposite = new Composite(advancedComposite, SWT.NONE);
+		keywordsComposite.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false, 3, 1));
+		GridLayout keywordsLayout = new GridLayout();
+		keywordsLayout.marginWidth = 0;
+		keywordsLayout.marginHeight = 0;
+		keywordsLayout.numColumns = 3;
+		keywordsComposite.setLayout(keywordsLayout);
+
+		keywordsOperation = new Combo(keywordsComposite, SWT.READ_ONLY);
+		keywordsOperation.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false));
+		keywordsOperation.setItems(keywordOperationText);
+		keywordsOperation.setText(keywordOperationText[0]);
+		keywordsOperation.select(0);
+
+		keywords = new Combo(keywordsComposite, SWT.NONE);
+		keywords.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		keywords.addModifyListener(new ModifyListenerImplementation());
+		keywords.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent e) {
+				handleWidgetSelected(keywords, keywordsOperation, previousKeywords);
+			}
+		});
+
+		final Button keywordsSelectButton = new Button(keywordsComposite, SWT.NONE);
+		keywordsSelectButton.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent e) {
+
+				final java.util.List<String> values = new ArrayList<String>();
+				for (String string : keywords.getText().split(",")) { //$NON-NLS-1$
+					values.add(string.trim());
+				}
+
+				Map<String, String> validValues = new HashMap<String, String>();
+				for (String string : repositoryConfiguration.getKeywords()) {
+					validValues.put(string, string);
+				}
+				final InPlaceCheckBoxTreeDialog selectionDialog = new InPlaceCheckBoxTreeDialog(
+						WorkbenchUtil.getShell(), keywordsSelectButton, values, validValues, ""); //$NON-NLS-1$
+				selectionDialog.addEventListener(new IInPlaceDialogListener() {
+
+					public void buttonPressed(InPlaceDialogEvent event) {
+						if (event.getReturnCode() == Window.OK) {
+							Set<String> newValues = selectionDialog.getSelectedValues();
+							if (!new HashSet<String>(values).equals(newValues)) {
+								String erg = ""; //$NON-NLS-1$
+								for (String string : newValues) {
+									if (erg.equals("")) { //$NON-NLS-1$
+										erg = string;
+									} else {
+										erg += (", " + string); //$NON-NLS-1$
+									}
+								}
+								keywords.setText(erg);
+							}
+						} else if (event.getReturnCode() == AbstractInPlaceDialog.ID_CLEAR) {
+							keywords.setText(""); //$NON-NLS-1$
+						}
+					}
+				});
+				selectionDialog.open();
+
+			}
+		});
+		keywordsSelectButton.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false));
+		keywordsSelectButton.setText(Messages.BugzillaSearchPage_Select_);
+
+		SashForm bottomForm = new SashForm(advancedComposite, SWT.NONE);
+		GridLayout bottomLayout = new GridLayout();
+		bottomLayout.numColumns = 6;
+		bottomForm.setLayout(bottomLayout);
+		GridData bottomLayoutData = new GridData(SWT.FILL, SWT.FILL, true, true, 4, 1);
+		bottomLayoutData.heightHint = 60;
+		bottomLayoutData.widthHint = 400;
+		bottomForm.setLayoutData(bottomLayoutData);
+
+		Composite priorityComposite = new Composite(bottomForm, SWT.NONE);
+		GridLayout priorityLayout = new GridLayout();
+		priorityLayout.marginWidth = 0;
+		priorityLayout.marginHeight = 0;
+		priorityLayout.horizontalSpacing = 0;
+		priorityComposite.setLayout(priorityLayout);
+
+		Label priorityLabel = new Label(priorityComposite, SWT.LEFT);
+		priorityLabel.setText(Messages.BugzillaSearchPage_PROORITY);
+		priorityLabel.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+
+		priority = new List(priorityComposite, SWT.MULTI | SWT.V_SCROLL | SWT.BORDER);
+		final GridData gd_priority = new GridData(SWT.FILL, SWT.FILL, true, true);
+		gd_priority.heightHint = HEIGHT_ATTRIBUTE_COMBO;
+		priority.setLayoutData(gd_priority);
+		priority.addSelectionListener(updateActionSelectionAdapter);
+
+		Composite resolutionComposite = new Composite(bottomForm, SWT.NONE);
+		GridLayout resolutionLayout = new GridLayout();
+		resolutionLayout.marginWidth = 0;
+		resolutionLayout.marginHeight = 0;
+		resolutionLayout.horizontalSpacing = 0;
+		resolutionComposite.setLayout(resolutionLayout);
+
+		Label resolutionLabel = new Label(resolutionComposite, SWT.LEFT);
+		resolutionLabel.setText(Messages.BugzillaSearchPage_Resolution);
+		resolutionLabel.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+
+		resolution = new List(resolutionComposite, SWT.MULTI | SWT.V_SCROLL | SWT.BORDER);
+		final GridData gd_resolution = new GridData(SWT.FILL, SWT.FILL, true, true);
+		gd_resolution.heightHint = HEIGHT_ATTRIBUTE_COMBO;
+		resolution.setLayoutData(gd_resolution);
+		resolution.addSelectionListener(updateActionSelectionAdapter);
+
+		Composite versionComposite = new Composite(bottomForm, SWT.NONE);
 		GridLayout versionLayout = new GridLayout();
 		versionLayout.marginWidth = 0;
 		versionLayout.marginHeight = 0;
@@ -696,7 +883,7 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 		version.setLayoutData(versionLayoutData);
 		version.addSelectionListener(updateActionSelectionAdapter);
 
-		Composite milestoneComposite = new Composite(topForm, SWT.NONE);
+		Composite milestoneComposite = new Composite(bottomForm, SWT.NONE);
 		GridLayout milestoneLayout = new GridLayout();
 		milestoneLayout.marginWidth = 0;
 		milestoneLayout.marginHeight = 0;
@@ -713,90 +900,8 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 		target.setLayoutData(targetLayoutData);
 		target.addSelectionListener(updateActionSelectionAdapter);
 
-		SashForm bottomForm = new SashForm(sashForm, SWT.NONE);
-		GridLayout bottomLayout = new GridLayout();
-		bottomLayout.numColumns = 6;
-		bottomForm.setLayout(bottomLayout);
-		GridData bottomLayoutData = new GridData(SWT.FILL, SWT.FILL, true, true, 4, 1);
-		bottomLayoutData.heightHint = 119;
-		bottomLayoutData.widthHint = 400;
-		bottomForm.setLayoutData(bottomLayoutData);
-
-		Composite statusComposite = new Composite(bottomForm, SWT.NONE);
-		GridLayout statusLayout = new GridLayout();
-		statusLayout.marginTop = 7;
-		statusLayout.marginWidth = 0;
-		statusLayout.horizontalSpacing = 0;
-		statusLayout.marginHeight = 0;
-		statusComposite.setLayout(statusLayout);
-
-		Label statusLabel = new Label(statusComposite, SWT.LEFT);
-		statusLabel.setText(Messages.BugzillaSearchPage_Status);
-		statusLabel.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
-
-		status = new List(statusComposite, SWT.MULTI | SWT.V_SCROLL | SWT.BORDER);
-		final GridData gd_status = new GridData(SWT.FILL, SWT.FILL, true, true);
-		gd_status.heightHint = 60;
-		status.setLayoutData(gd_status);
-		status.addSelectionListener(updateActionSelectionAdapter);
-
-		Composite resolutionComposite = new Composite(bottomForm, SWT.NONE);
-		GridLayout resolutionLayout = new GridLayout();
-		resolutionLayout.marginTop = 7;
-		resolutionLayout.marginWidth = 0;
-		resolutionLayout.marginHeight = 0;
-		resolutionLayout.horizontalSpacing = 0;
-		resolutionComposite.setLayout(resolutionLayout);
-
-		Label resolutionLabel = new Label(resolutionComposite, SWT.LEFT);
-		resolutionLabel.setText(Messages.BugzillaSearchPage_Resolution);
-		resolutionLabel.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
-
-		resolution = new List(resolutionComposite, SWT.MULTI | SWT.V_SCROLL | SWT.BORDER);
-		final GridData gd_resolution = new GridData(SWT.FILL, SWT.FILL, true, true);
-		gd_resolution.heightHint = 60;
-		resolution.setLayoutData(gd_resolution);
-		resolution.addSelectionListener(updateActionSelectionAdapter);
-
-		Composite priorityComposite = new Composite(bottomForm, SWT.NONE);
-		GridLayout priorityLayout = new GridLayout();
-		priorityLayout.marginTop = 7;
-		priorityLayout.marginWidth = 0;
-		priorityLayout.marginHeight = 0;
-		priorityLayout.horizontalSpacing = 0;
-		priorityComposite.setLayout(priorityLayout);
-
-		Label priorityLabel = new Label(priorityComposite, SWT.LEFT);
-		priorityLabel.setText(Messages.BugzillaSearchPage_PROORITY);
-		priorityLabel.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
-
-		priority = new List(priorityComposite, SWT.MULTI | SWT.V_SCROLL | SWT.BORDER);
-		final GridData gd_priority = new GridData(SWT.FILL, SWT.FILL, true, true);
-		gd_priority.heightHint = 60;
-		priority.setLayoutData(gd_priority);
-		priority.addSelectionListener(updateActionSelectionAdapter);
-
-		Composite severityComposite = new Composite(bottomForm, SWT.NONE);
-		GridLayout severityLayout = new GridLayout();
-		severityLayout.marginTop = 7;
-		severityLayout.marginWidth = 0;
-		severityLayout.marginHeight = 0;
-		severityLayout.horizontalSpacing = 0;
-		severityComposite.setLayout(severityLayout);
-
-		Label severityLabel = new Label(severityComposite, SWT.LEFT);
-		severityLabel.setText(Messages.BugzillaSearchPage_Severity);
-		severityLabel.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
-
-		severity = new List(severityComposite, SWT.MULTI | SWT.V_SCROLL | SWT.BORDER);
-		final GridData gd_severity = new GridData(SWT.FILL, SWT.FILL, true, true);
-		gd_severity.heightHint = 60;
-		severity.setLayoutData(gd_severity);
-		severity.addSelectionListener(updateActionSelectionAdapter);
-
 		Composite hardwareComposite = new Composite(bottomForm, SWT.NONE);
 		GridLayout hardwareLayout = new GridLayout();
-		hardwareLayout.marginTop = 7;
 		hardwareLayout.marginWidth = 0;
 		hardwareLayout.marginHeight = 0;
 		hardwareLayout.horizontalSpacing = 0;
@@ -808,13 +913,12 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 
 		hardware = new List(hardwareComposite, SWT.MULTI | SWT.V_SCROLL | SWT.BORDER);
 		final GridData gd_hardware = new GridData(SWT.FILL, SWT.FILL, true, true);
-		gd_hardware.heightHint = 60;
+		gd_hardware.heightHint = HEIGHT_ATTRIBUTE_COMBO;
 		hardware.setLayoutData(gd_hardware);
 		hardware.addSelectionListener(updateActionSelectionAdapter);
 
 		Composite osComposite = new Composite(bottomForm, SWT.NONE);
 		GridLayout osLayout = new GridLayout();
-		osLayout.marginTop = 7;
 		osLayout.marginWidth = 0;
 		osLayout.marginHeight = 0;
 		osLayout.horizontalSpacing = 0;
@@ -826,20 +930,22 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 
 		os = new List(osComposite, SWT.MULTI | SWT.V_SCROLL | SWT.BORDER);
 		final GridData gd_os = new GridData(SWT.FILL, SWT.FILL, true, true);
-		gd_os.heightHint = 60;
+		gd_os.heightHint = HEIGHT_ATTRIBUTE_COMBO;
 		os.setLayoutData(gd_os);
 		os.addSelectionListener(updateActionSelectionAdapter);
-		bottomForm.setWeights(new int[] { 88, 90, 50, 77, 88, 85 });
+
 	}
 
 	private void createSearchGroup(Composite control) {
 		Composite composite = new Composite(control, SWT.NONE);
-		composite.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		GridData gd = new GridData(SWT.FILL, SWT.CENTER, true, false);
+		gd.horizontalSpan = 4;
+		composite.setLayoutData(gd);
 		GridLayout gridLayout = new GridLayout();
 		gridLayout.marginTop = 7;
 		gridLayout.marginHeight = 0;
 		gridLayout.marginWidth = 0;
-		gridLayout.numColumns = 2;
+		gridLayout.numColumns = 3;
 		composite.setLayout(gridLayout);
 
 		Label changedInTheLabel = new Label(composite, SWT.LEFT);
@@ -848,7 +954,7 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 
 		Composite updateComposite = new Composite(composite, SWT.NONE);
 		updateComposite.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-		GridLayout updateLayout = new GridLayout(3, false);
+		GridLayout updateLayout = new GridLayout(2, false);
 		updateLayout.marginWidth = 0;
 		updateLayout.horizontalSpacing = 0;
 		updateLayout.marginHeight = 0;
@@ -862,33 +968,6 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 		Label label = new Label(updateComposite, SWT.LEFT);
 		label.setText(Messages.BugzillaSearchPage_days);
 
-		Button updateButton = new Button(updateComposite, SWT.PUSH);
-		updateButton.setText(Messages.BugzillaSearchPage_Update_Attributes_from_Repository);
-		updateButton.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, true, false));
-		updateButton.addSelectionListener(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent e) {
-				if (getTaskRepository() != null) {
-//					try {
-
-					updateConfiguration(true);
-
-//					} catch (final CoreException e1) {
-//						PlatformUI.getWorkbench().getDisplay().asyncExec(new Runnable() {
-//							public void run() {
-//								MessageDialog.openError(Display.getDefault().getActiveShell(), "Bugzilla Search Page",
-//										"Unable to get configuration. Ensure proper repository configuration in "
-//												+ TasksUiPlugin.LABEL_VIEW_REPOSITORIES + ".\n\n");
-//							}
-//						});
-//					}
-				} else {
-					MessageDialog.openInformation(Display.getCurrent().getActiveShell(),
-							IBugzillaConstants.TITLE_MESSAGE_DIALOG,
-							Messages.BugzillaSearchPage_No_repository_available);
-				}
-			}
-		});
 	}
 
 	/**
@@ -997,45 +1076,6 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 	public void setVisible(boolean visible) {
 		if (visible && summaryPattern != null) {
 			if (firstTime) {
-				// Set<TaskRepository> repositories = TasksUiPlugin.getRepositoryManager().getRepositories(BugzillaCorePlugin.REPOSITORY_KIND);
-				// String[] repositoryUrls = new String[repositories.size()];
-				// int i = 0;
-				// int indexToSelect = 0;
-				// for (Iterator<TaskRepository> iter = repositories.iterator(); iter.hasNext();) {
-				// TaskRepository currRepsitory = iter.next();
-				// // if (i == 0 && repository == null) {
-				// // repository = currRepsitory;
-				// // indexToSelect = 0;
-				// // }
-				// if (repository != null && repository.equals(currRepsitory)) {
-				// indexToSelect = i;
-				// }
-				// repositoryUrls[i] = currRepsitory.getUrl();
-				// i++;
-				// }
-
-				// IDialogSettings settings = getDialogSettings();
-				// if (repositoryCombo != null) {
-				// repositoryCombo.setItems(repositoryUrls);
-				// if (repositoryUrls.length == 0) {
-				// MessageDialog.openInformation(Display.getCurrent().getActiveShell(), IBugzillaConstants.TITLE_MESSAGE_DIALOG,
-				// TaskRepositoryManager.MESSAGE_NO_REPOSITORY);
-				// } else {
-				// String selectRepo = settings.get(STORE_REPO_ID);
-				// if (selectRepo != null && repositoryCombo.indexOf(selectRepo) > -1) {
-				// repositoryCombo.setText(selectRepo);
-				// repository = TasksUiPlugin.getRepositoryManager().getRepository(
-				// BugzillaCorePlugin.REPOSITORY_KIND, repositoryCombo.getText());
-				// if (repository == null) {
-				// repository = TasksUiPlugin.getRepositoryManager().getDefaultRepository( BugzillaCorePlugin.REPOSITORY_KIND);
-				// }
-				// } else {
-				// repositoryCombo.select(indexToSelect);
-				// }
-				// updateAttributesFromRepository(repositoryCombo.getText(), null, false);
-				// }
-				// }
-
 				firstTime = false;
 				// Set item and text here to prevent page from resizing
 				for (String searchPattern : getPreviousPatterns(previousSummaryPatterns)) {
@@ -1102,7 +1142,34 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 					restoreWidgetValues();
 				}
 			}
+			if ((commentPattern.getText() != null && !commentPattern.getText().equals("")) || // //$NON-NLS-1$
+					(emailPattern2.getText() != null && !emailPattern2.getText().equals("")) || // //$NON-NLS-1$
+					(keywords.getText() != null && !keywords.getText().equals("")) || // //$NON-NLS-1$
+					priority.getSelection().length > 0 || resolution.getSelection().length > 0
+					|| version.getSelection().length > 0 || target.getSelection().length > 0
+					|| hardware.getSelection().length > 0 || os.getSelection().length > 0) {
+				moreOptionsExpandComposite.setExpanded(true);
+				Shell shell = getShell();
+				if (inSearchContainer()) {
+					shell.setMinimumSize(new Point(610, 660));
+				} else {
+					shell.setMinimumSize(new Point(590, 660));
+				}
+				shell.layout(true);
+				shell.pack();
+				shell.layout(true);
+			}
 			setPageComplete(isPageComplete());
+		}
+		if (visible) {
+			getControl().getShell().layout(false, true);
+			Point oldSize = getControl().getSize();
+			Point newSize = getControl().computeSize(SWT.DEFAULT, SWT.DEFAULT, true);
+			if (!moreOptionsExpandComposite.isExpanded()) {
+				// for some reason in not expanded state the width is a little to small
+				newSize.x += 36;
+			}
+			resizeDialogIfNeeded(oldSize, newSize);
 			if (getWizard() == null) {
 				// TODO: wierd check
 				summaryPattern.setFocus();
@@ -1767,6 +1834,16 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 				keywords.setText(settings.get(STORE_KEYWORDS_ID + repoId));
 				keywordsOperation.select(settings.getInt(STORE_KEYWORDSMATCH_ID + repoId));
 			}
+
+			if ((commentPattern.getText() != null && !commentPattern.getText().equals("")) || // //$NON-NLS-1$
+					(emailPattern2.getText() != null && !emailPattern2.getText().equals("")) || // //$NON-NLS-1$
+					(keywords.getText() != null && !keywords.getText().equals("")) || // //$NON-NLS-1$
+					priority.getSelection().length > 0 || resolution.getSelection().length > 0
+					|| version.getSelection().length > 0 || target.getSelection().length > 0
+					|| hardware.getSelection().length > 0 || os.getSelection().length > 0) {
+				moreOptionsExpandComposite.setExpanded(true);
+			}
+
 		} catch (IllegalArgumentException e) {
 			//ignore
 		}
@@ -1922,8 +1999,6 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 							shell.setEnabled(true);
 						}
 						return;
-//									this.setPageComplete(this.isPageComplete());
-//									this.setControlsEnabled(true);
 					} else {
 						StatusHandler.log(new Status(IStatus.ERROR, BugzillaUiPlugin.ID_PLUGIN, cause.getMessage(),
 								cause));
@@ -1990,6 +2065,46 @@ public class BugzillaSearchPage extends AbstractRepositoryQueryPage implements L
 		if (shell != null) {
 			saveBounds(shell.getBounds());
 		}
+	}
+
+	@Override
+	public void dispose() {
+		if (toolkit != null) {
+			if (toolkit.getColors() != null) {
+				toolkit.dispose();
+			}
+		}
+		super.dispose();
+	}
+
+	private void resizeDialogIfNeeded(Point oldSize, Point newSize) {
+		if (oldSize == null || newSize == null) {
+			return;
+		}
+		Shell shell = getShell();
+		Point shellSize = shell.getSize();
+		if (mustResize(oldSize, newSize)) {
+			if (newSize.x > oldSize.x) {
+				shellSize.x += (newSize.x - oldSize.x);
+			}
+			if (newSize.y > oldSize.y) {
+				shellSize.y += (newSize.y - oldSize.y);
+			} else {
+				shellSize.y -= (oldSize.y - newSize.y);
+			}
+			shell.setSize(shellSize);
+			shell.layout(true);
+		} else {
+			shell.pack();
+			shellSize.x++;
+			shell.setSize(shellSize);
+			shellSize.x--;
+			shell.setSize(shellSize);
+		}
+	}
+
+	private boolean mustResize(Point currentSize, Point newSize) {
+		return currentSize.x < newSize.x || currentSize.y != newSize.y;
 	}
 
 }

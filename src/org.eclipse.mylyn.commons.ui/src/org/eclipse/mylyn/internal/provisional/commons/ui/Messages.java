@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009 Tasktop Technologies and others.
+ * Copyright (c) 2009, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -17,6 +17,10 @@ public class Messages extends NLS {
 	private static final String BUNDLE_NAME = "org.eclipse.mylyn.internal.provisional.commons.ui.messages"; //$NON-NLS-1$
 
 	public static String DatePickerPanel_Today;
+
+	public static String TextControl_FindToolTip;
+
+	public static String TextControl_AccessibleListenerFindButton;
 	static {
 		// initialize resource bundle
 		NLS.initializeMessages(BUNDLE_NAME, Messages.class);

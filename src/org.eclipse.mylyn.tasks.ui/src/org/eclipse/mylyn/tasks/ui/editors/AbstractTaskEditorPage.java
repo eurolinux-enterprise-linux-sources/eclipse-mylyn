@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -9,6 +9,7 @@
  *     Tasktop Technologies - initial API and implementation
  *     David Green - fixes for bug 237503
  *     Frank Becker - fixes for bug 252300
+ *	   Kevin Sawicki - fixes for bug 306029
  *******************************************************************************/
 
 package org.eclipse.mylyn.tasks.ui.editors;
@@ -32,10 +33,14 @@ import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.core.runtime.SafeRunner;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.action.Action;
+import org.eclipse.jface.action.IMenuCreator;
 import org.eclipse.jface.action.IToolBarManager;
+import org.eclipse.jface.action.MenuManager;
 import org.eclipse.jface.dialogs.IMessageProvider;
+import org.eclipse.jface.dialogs.PopupDialog;
 import org.eclipse.jface.layout.GridDataFactory;
 import org.eclipse.jface.layout.GridLayoutFactory;
+import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.jface.text.TextSelection;
 import org.eclipse.jface.util.SafeRunnable;
 import org.eclipse.jface.viewers.ISelection;
@@ -87,15 +92,17 @@ import org.eclipse.mylyn.internal.tasks.ui.util.TasksUiInternal;
 import org.eclipse.mylyn.tasks.core.AbstractRepositoryConnector;
 import org.eclipse.mylyn.tasks.core.IRepositoryElement;
 import org.eclipse.mylyn.tasks.core.ITask;
+import org.eclipse.mylyn.tasks.core.ITask.SynchronizationState;
+import org.eclipse.mylyn.tasks.core.ITaskAttachment;
 import org.eclipse.mylyn.tasks.core.RepositoryStatus;
 import org.eclipse.mylyn.tasks.core.TaskRepository;
-import org.eclipse.mylyn.tasks.core.ITask.SynchronizationState;
 import org.eclipse.mylyn.tasks.core.data.ITaskDataWorkingCopy;
 import org.eclipse.mylyn.tasks.core.data.TaskAttribute;
 import org.eclipse.mylyn.tasks.core.data.TaskData;
 import org.eclipse.mylyn.tasks.core.data.TaskDataModel;
 import org.eclipse.mylyn.tasks.core.data.TaskDataModelEvent;
 import org.eclipse.mylyn.tasks.core.data.TaskDataModelListener;
+import org.eclipse.mylyn.tasks.core.data.TaskRelation;
 import org.eclipse.mylyn.tasks.core.sync.SubmitJob;
 import org.eclipse.mylyn.tasks.core.sync.SubmitJobEvent;
 import org.eclipse.mylyn.tasks.core.sync.SubmitJobListener;
@@ -122,6 +129,8 @@ import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.ScrollBar;
+import org.eclipse.swt.widgets.TableItem;
+import org.eclipse.swt.widgets.ToolItem;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.IEditorSite;
 import org.eclipse.ui.PlatformUI;
@@ -205,7 +214,7 @@ public abstract class AbstractTaskEditorPage extends TaskFormPage implements ISe
 						if (job.getStatus() == null) {
 							TasksUiInternal.synchronizeRepositoryInBackground(getTaskRepository());
 							if (job.getTask().equals(getTask())) {
-								refreshFormContent();
+								refresh();
 							} else {
 								ITask oldTask = getTask();
 								ITask newTask = job.getTask();
@@ -214,6 +223,8 @@ public abstract class AbstractTaskEditorPage extends TaskFormPage implements ISe
 								TaskMigrator migrator = new TaskMigrator(oldTask);
 								migrator.setDelete(true);
 								migrator.setEditor(getTaskEditor());
+								migrator.setMigrateDueDate(!connector.hasRepositoryDueDate(getTaskRepository(),
+										newTask, taskData));
 								migrator.execute(newTask);
 							}
 						}
@@ -294,13 +305,13 @@ public abstract class AbstractTaskEditorPage extends TaskFormPage implements ISe
 
 					if (!isDirty() && task.getSynchronizationState() == SynchronizationState.SYNCHRONIZED) {
 						// automatically refresh if the user has not made any changes and there is no chance of missing incomings
-						refreshFormContent();
+						AbstractTaskEditorPage.this.refresh();
 					} else {
 						getTaskEditor().setMessage(Messages.AbstractTaskEditorPage_Task_has_incoming_changes,
 								IMessageProvider.WARNING, new HyperlinkAdapter() {
 									@Override
 									public void linkActivated(HyperlinkEvent e) {
-										refreshFormContent();
+										AbstractTaskEditorPage.this.refresh();
 									}
 								});
 						setSubmitEnabled(false);
@@ -350,6 +361,65 @@ public abstract class AbstractTaskEditorPage extends TaskFormPage implements ISe
 		}
 
 	};
+
+	private class AdditionalMenuAction extends Action {
+
+		public AdditionalMenuAction() {
+			setImageDescriptor(JFaceResources.getImageRegistry().getDescriptor(PopupDialog.POPUP_IMG_MENU));
+			setDisabledImageDescriptor(JFaceResources.getImageRegistry().getDescriptor(
+					PopupDialog.POPUP_IMG_MENU_DISABLED));
+
+		}
+
+		@Override
+		public void runWithEvent(Event event) {
+			ToolItem toolItem = (ToolItem) event.widget;
+			Menu menu = getMenuCreator().getMenu(toolItem.getControl());
+			Rectangle bounds = toolItem.getParent().getBounds();
+			Point topLeft = new Point(bounds.x, bounds.y + bounds.height);
+			topLeft = toolItem.getControl().getShell().toDisplay(topLeft);
+			menu.setLocation(topLeft.x, topLeft.y);
+			menu.setVisible(true);
+		}
+
+	}
+
+	private class MenuCreator implements IMenuCreator {
+
+		private MenuManager menuManager;
+
+		private Menu menu;
+
+		public MenuCreator() {
+		}
+
+		public void dispose() {
+			if (menu != null) {
+				menu.dispose();
+				menu = null;
+			}
+			if (menuManager != null) {
+				menuManager.dispose();
+				menuManager = null;
+			}
+		}
+
+		public Menu getMenu(Control parent) {
+			if (menuManager == null) {
+				menuManager = new MenuManager();
+				initialize(menuManager);
+			}
+			return menuManager.createContextMenu(parent);
+		}
+
+		public Menu getMenu(Menu parent) {
+			return null;
+		}
+
+		protected void initialize(MenuManager menuManager) {
+		}
+
+	}
 
 	private static final String ERROR_NOCONNECTIVITY = Messages.AbstractTaskEditorPage_Unable_to_submit_at_this_time;
 
@@ -571,7 +641,6 @@ public abstract class AbstractTaskEditorPage extends TaskFormPage implements ISe
 		form = managedForm.getForm();
 
 		toolkit = managedForm.getToolkit();
-		toolkit.setBorderStyle(SWT.NULL);
 		registerDefaultDropListener(form);
 		CommonFormUtil.disableScrollingOnFocus(form);
 
@@ -598,7 +667,7 @@ public abstract class AbstractTaskEditorPage extends TaskFormPage implements ISe
 						IMessageProvider.INFORMATION, new HyperlinkAdapter() {
 							@Override
 							public void linkActivated(HyperlinkEvent e) {
-								refreshFormContent();
+								AbstractTaskEditorPage.this.refresh();
 							}
 						});
 			}
@@ -959,16 +1028,26 @@ public abstract class AbstractTaskEditorPage extends TaskFormPage implements ISe
 				if (connectorUi != null) {
 					final String historyUrl = connectorUi.getTaskHistoryUrl(taskRepository, task);
 					if (historyUrl != null) {
-						Action historyAction = new Action() {
+						final Action historyAction = new Action() {
 							@Override
 							public void run() {
 								TasksUiUtil.openUrl(historyUrl);
 							}
 						};
 
+						historyAction.setText(Messages.AbstractTaskEditorPage_History);
 						historyAction.setImageDescriptor(TasksUiImages.TASK_REPOSITORY_HISTORY);
 						historyAction.setToolTipText(Messages.AbstractTaskEditorPage_History);
-						toolBarManager.prependToGroup("open", historyAction); //$NON-NLS-1$
+						if (getEditor().openWithBrowserAction != null) {
+							getEditor().openWithBrowserAction.setMenuCreator(new MenuCreator() {
+								@Override
+								protected void initialize(MenuManager menuManager) {
+									menuManager.add(historyAction);
+								};
+							});
+						} else {
+							toolBarManager.prependToGroup("open", historyAction); //$NON-NLS-1$
+						}
 					}
 				}
 			}
@@ -1018,7 +1097,7 @@ public abstract class AbstractTaskEditorPage extends TaskFormPage implements ISe
 			updateOutlinePage();
 			return outlinePage;
 		}
-		// TODO 3.4 replace by getTextSupport() method
+		// TODO 3.5 replace by getTextSupport() method
 		if (adapter == CommonTextSupport.class) {
 			return textSupport;
 		}
@@ -1033,39 +1112,14 @@ public abstract class AbstractTaskEditorPage extends TaskFormPage implements ISe
 					ISelection selection = event.getSelection();
 					if (selection instanceof StructuredSelection) {
 						Object select = ((StructuredSelection) selection).getFirstElement();
-						if (select instanceof TaskEditorOutlineNode) {
-							TaskEditorOutlineNode node = (TaskEditorOutlineNode) select;
-							TaskAttribute attribute = node.getData();
-							if (attribute != null) {
-								if (TaskAttribute.TYPE_COMMENT.equals(attribute.getMetaData().getType())) {
-									AbstractTaskEditorPart actionPart = getPart(ID_PART_COMMENTS);
-									if (actionPart != null && actionPart.getControl() instanceof ExpandableComposite) {
-										CommonFormUtil.setExpanded((ExpandableComposite) actionPart.getControl(), true);
-										if (actionPart.getControl() instanceof Section) {
-											Control client = ((Section) actionPart.getControl()).getClient();
-											if (client instanceof Composite) {
-												for (Control control : ((Composite) client).getChildren()) {
-													// toggle subsections
-													if (control instanceof Section) {
-														CommonFormUtil.setExpanded((Section) control, true);
-													}
-												}
-											}
-										}
-									}
-								}
-								EditorUtil.reveal(form, attribute.getId());
-							} else {
-								EditorUtil.reveal(form, node.getLabel());
-							}
-							getEditor().setActivePage(getId());
-						}
+						selectReveal(select);
+						getEditor().setActivePage(getId());
 					}
 				}
 			});
 		}
 		if (getModel() != null) {
-			TaskEditorOutlineNode node = TaskEditorOutlineNode.parse(getModel().getTaskData());
+			TaskEditorOutlineNode node = TaskEditorOutlineNode.parse(getModel().getTaskData(), false);
 			outlinePage.setInput(getTaskRepository(), node);
 		} else {
 			outlinePage.setInput(null, null);
@@ -1165,6 +1219,7 @@ public abstract class AbstractTaskEditorPage extends TaskFormPage implements ISe
 				}
 			} else if (status.getCode() == RepositoryStatus.ERROR_REPOSITORY_LOGIN) {
 				if (TasksUiUtil.openEditRepositoryWizard(getTaskRepository()) == Window.OK) {
+					submitEnabled = true;
 					doSubmit();
 				}
 			} else {
@@ -1212,7 +1267,10 @@ public abstract class AbstractTaskEditorPage extends TaskFormPage implements ISe
 			model.addModelListener(new TaskDataModelListener() {
 				@Override
 				public void attributeChanged(TaskDataModelEvent event) {
-					getManagedForm().dirtyStateChanged();
+					IManagedForm form = getManagedForm();
+					if (form != null) {
+						form.dirtyStateChanged();
+					}
 				}
 			});
 			setNeedsAddToCategory(model.getTaskData().isNew());
@@ -1235,15 +1293,21 @@ public abstract class AbstractTaskEditorPage extends TaskFormPage implements ISe
 			if (part.getControl() != null) {
 				if (ID_PART_ACTIONS.equals(part.getPartId())) {
 					// do not expand horizontally
-					GridDataFactory.fillDefaults().align(SWT.FILL, SWT.FILL).grab(false, false).applyTo(
-							part.getControl());
+					GridDataFactory.fillDefaults()
+							.align(SWT.FILL, SWT.FILL)
+							.grab(false, false)
+							.applyTo(part.getControl());
 				} else {
 					if (part.getExpandVertically()) {
-						GridDataFactory.fillDefaults().align(SWT.FILL, SWT.FILL).grab(true, true).applyTo(
-								part.getControl());
+						GridDataFactory.fillDefaults()
+								.align(SWT.FILL, SWT.FILL)
+								.grab(true, true)
+								.applyTo(part.getControl());
 					} else {
-						GridDataFactory.fillDefaults().align(SWT.FILL, SWT.TOP).grab(true, false).applyTo(
-								part.getControl());
+						GridDataFactory.fillDefaults()
+								.align(SWT.FILL, SWT.TOP)
+								.grab(true, false)
+								.applyTo(part.getControl());
 					}
 				}
 				// for outline
@@ -1295,16 +1359,32 @@ public abstract class AbstractTaskEditorPage extends TaskFormPage implements ISe
 
 	/**
 	 * Updates the editor contents in place.
+	 * 
+	 * @deprecated Use {@link #refresh()} instead
 	 */
+	@Deprecated
 	public void refreshFormContent() {
+		refresh();
+	}
+
+	/**
+	 * Updates the editor contents in place.
+	 */
+	@Override
+	public void refresh() {
 		if (getManagedForm() == null || getManagedForm().getForm().isDisposed()) {
-			// editor possibly closed as part of submit or page has not been intialized, yet
+			// editor possibly closed or page has not been initialized
 			return;
 		}
 
 		try {
 			showEditorBusy(true);
 
+			boolean hasIncoming = false;
+
+			if (getTask() != null) {
+				hasIncoming = getTask().getSynchronizationState().isIncoming();
+			}
 			if (model != null) {
 				doSave(new NullProgressMonitor());
 				refreshInput();
@@ -1338,7 +1418,9 @@ public abstract class AbstractTaskEditorPage extends TaskFormPage implements ISe
 					createFormContentInternal();
 
 					getTaskEditor().setMessage(null, 0);
-					getTaskEditor().setActivePage(getId());
+					if (hasIncoming) {
+						getTaskEditor().setActivePage(getId());
+					}
 
 					setSubmitEnabled(true);
 				} finally {
@@ -1647,5 +1729,94 @@ public abstract class AbstractTaskEditorPage extends TaskFormPage implements ISe
 //			toolBarManager.add(submitButtonContribution);
 //		}
 //	}
+
+	@Override
+	public boolean selectReveal(Object object) {
+		if (object instanceof TaskEditorOutlineNode) {
+			TaskEditorOutlineNode node = (TaskEditorOutlineNode) object;
+			TaskAttribute attribute = node.getData();
+			if (attribute != null) {
+				if (TaskAttribute.TYPE_COMMENT.equals(attribute.getMetaData().getType())) {
+					AbstractTaskEditorPart actionPart = this.getPart(AbstractTaskEditorPage.ID_PART_COMMENTS);
+					if (actionPart != null && actionPart.getControl() instanceof ExpandableComposite) {
+						CommonFormUtil.setExpanded((ExpandableComposite) actionPart.getControl(), true);
+						if (actionPart.getControl() instanceof Section) {
+							Control client = ((Section) actionPart.getControl()).getClient();
+							if (client instanceof Composite) {
+								for (Control control : ((Composite) client).getChildren()) {
+									// toggle subsections
+									if (control instanceof Section) {
+										CommonFormUtil.setExpanded((Section) control, true);
+									}
+								}
+							}
+						}
+					}
+					EditorUtil.reveal(this.getManagedForm().getForm(), attribute.getId());
+					return true;
+				} else if (TaskAttribute.TYPE_ATTACHMENT.equals(attribute.getMetaData().getType())) {
+					AbstractTaskEditorPart actionPart = this.getPart(AbstractTaskEditorPage.ID_PART_ATTACHMENTS);
+					if (actionPart != null && actionPart.getControl() instanceof ExpandableComposite) {
+						CommonFormUtil.setExpanded((ExpandableComposite) actionPart.getControl(), true);
+						if (actionPart.getControl() instanceof Section) {
+							Control client = actionPart.getControl();
+							if (client instanceof Composite) {
+								for (Control control : ((Composite) client).getChildren()) {
+									if (control instanceof Composite) {
+										for (Control control1 : ((Composite) control).getChildren()) {
+											if (control1 instanceof org.eclipse.swt.widgets.Table) {
+												org.eclipse.swt.widgets.Table attachmentTable = ((org.eclipse.swt.widgets.Table) control1);
+												TableItem[] attachments = attachmentTable.getItems();
+												int index = 0;
+												for (TableItem attachment : attachments) {
+													Object data = attachment.getData();
+													if (data instanceof ITaskAttachment) {
+														ITaskAttachment attachmentData = ((ITaskAttachment) data);
+														if (attachmentData.getTaskAttribute() == attribute) {
+															attachmentTable.deselectAll();
+															attachmentTable.select(index);
+															IManagedForm mform = actionPart.getManagedForm();
+															ScrolledForm form = mform.getForm();
+															EditorUtil.focusOn(form, attachmentTable);
+															return true;
+														}
+													}
+													index++;
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				} else {
+					TaskEditorAttributePart actionPart = (TaskEditorAttributePart) this.getPart(AbstractTaskEditorPage.ID_PART_ATTRIBUTES);
+					Section section = actionPart.getSection();
+					boolean expanded = section.isExpanded();
+					if (!expanded && actionPart != null && actionPart.getControl() instanceof ExpandableComposite) {
+						CommonFormUtil.setExpanded((ExpandableComposite) actionPart.getControl(), true);
+						if (!expanded) {
+							CommonFormUtil.setExpanded((ExpandableComposite) actionPart.getControl(), false);
+						}
+					}
+
+					EditorUtil.reveal(this.getManagedForm().getForm(), attribute.getId());
+					return true;
+				}
+			} else {
+				TaskRelation taskRelation = node.getTaskRelation();
+				TaskRepository taskRepository = node.getTaskRepository();
+				if (taskRelation != null && taskRepository != null) {
+					String taskID = taskRelation.getTaskId();
+					TasksUiUtil.openTask(taskRepository, taskID);
+				} else {
+					EditorUtil.reveal(this.getManagedForm().getForm(), node.getLabel());
+				}
+				return true;
+			}
+		}
+		return super.selectReveal(object);
+	}
 
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Helen Bershadskaya and others. 
+ * Copyright (c) 2004, 2010 Helen Bershadskaya and others. 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -99,6 +99,7 @@ public class TaskRepositoryWizardDialog extends WizardDialog {
 			if (!validateServerButton.isVisible()) {
 				validateServerButton.setVisible(true);
 			}
+			validateServerButton.setEnabled(((AbstractRepositorySettingsPage) getCurrentPage()).canValidate());
 		} else {
 			if (validateServerButton != null && validateServerButton.isVisible()) {
 				validateServerButton.setVisible(false);
@@ -150,8 +151,7 @@ public class TaskRepositoryWizardDialog extends WizardDialog {
 		HashMap<String, Boolean> savedEnabledState = null;
 		if (getShell() != null) {
 			savedEnabledState = new HashMap<String, Boolean>();
-			if (validateServerButton != null && getShell().getDisplay().getFocusControl() == validateServerButton
-					&& validateServerButton.getShell() == getShell()) {
+			if (validateServerButton != null && validateServerButton.getShell() == getShell()) {
 				savedEnabledState.put(VALIDATE_BUTTON_KEY, validateServerButton.getEnabled());
 				validateServerButton.setEnabled(false);
 			}

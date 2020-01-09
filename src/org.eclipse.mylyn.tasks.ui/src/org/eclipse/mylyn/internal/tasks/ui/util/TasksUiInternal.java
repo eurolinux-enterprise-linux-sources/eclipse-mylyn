@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -7,6 +7,7 @@
  *
  * Contributors:
  *     Tasktop Technologies - initial API and implementation
+ *     Steve Elsemore - fix for bug 296963
  *******************************************************************************/
 
 package org.eclipse.mylyn.internal.tasks.ui.util;
@@ -74,6 +75,7 @@ import org.eclipse.mylyn.internal.tasks.core.UncategorizedTaskContainer;
 import org.eclipse.mylyn.internal.tasks.core.UnsubmittedTaskContainer;
 import org.eclipse.mylyn.internal.tasks.core.sync.SynchronizationScheduler;
 import org.eclipse.mylyn.internal.tasks.core.sync.SynchronizationScheduler.Synchronizer;
+import org.eclipse.mylyn.internal.tasks.ui.ITasksUiPreferenceConstants;
 import org.eclipse.mylyn.internal.tasks.ui.OpenRepositoryTaskJob;
 import org.eclipse.mylyn.internal.tasks.ui.TasksUiPlugin;
 import org.eclipse.mylyn.internal.tasks.ui.views.TaskListView;
@@ -90,6 +92,7 @@ import org.eclipse.mylyn.tasks.core.ITaskMapping;
 import org.eclipse.mylyn.tasks.core.RepositoryStatus;
 import org.eclipse.mylyn.tasks.core.TaskRepository;
 import org.eclipse.mylyn.tasks.core.ITask.PriorityLevel;
+import org.eclipse.mylyn.tasks.core.ITask.SynchronizationState;
 import org.eclipse.mylyn.tasks.core.data.AbstractTaskAttachmentSource;
 import org.eclipse.mylyn.tasks.core.data.AbstractTaskDataHandler;
 import org.eclipse.mylyn.tasks.core.data.ITaskDataWorkingCopy;
@@ -367,6 +370,10 @@ public class TasksUiInternal {
 		SynchronizationJob job = TasksUiPlugin.getTaskJobFactory().createSynchronizeQueriesJob(connector, repository,
 				queries);
 		job.setUser(force);
+		if (force) {
+			// show the progress in the system task bar if this is a user job (i.e. forced)
+			job.setProperty(WorkbenchUtil.SHOW_IN_TASKBAR_ICON_PROPERTY, Boolean.TRUE);
+		}
 		if (listener != null) {
 			job.addJobChangeListener(listener);
 		}
@@ -401,6 +408,10 @@ public class TasksUiInternal {
 	public static SynchronizationJob synchronizeAllRepositories(boolean force) {
 		SynchronizationJob job = TasksUiPlugin.getTaskJobFactory().createSynchronizeRepositoriesJob(null);
 		job.setUser(force);
+		if (force) {
+			// show the progress in the system task bar if this is a user job (i.e. forced)
+			job.setProperty(WorkbenchUtil.SHOW_IN_TASKBAR_ICON_PROPERTY, Boolean.TRUE);
+		}
 		job.schedule();
 		joinIfInTestMode(job);
 		return job;
@@ -428,6 +439,10 @@ public class TasksUiInternal {
 		// do not show in progress view by default
 		job.setSystem(true);
 		job.setUser(force);
+		if (force) {
+			// show the progress in the system task bar if this is a user job (i.e. forced)
+			job.setProperty(WorkbenchUtil.SHOW_IN_TASKBAR_ICON_PROPERTY, Boolean.TRUE);
+		}
 		job.setFullSynchronization(false);
 		return job;
 	}
@@ -643,14 +658,19 @@ public class TasksUiInternal {
 	}
 
 	/**
+	 * @param connectorUi
+	 *            - repository connector ui
+	 * @param query
+	 *            - repository query
+	 * @return - true if dialog was opened successfully and not canceled, false otherwise
 	 * @since 3.0
 	 */
-	public static void openEditQueryDialog(AbstractRepositoryConnectorUi connectorUi, IRepositoryQuery query) {
+	public static boolean openEditQueryDialog(AbstractRepositoryConnectorUi connectorUi, IRepositoryQuery query) {
 		try {
 			TaskRepository repository = TasksUi.getRepositoryManager().getRepository(query.getConnectorKind(),
 					query.getRepositoryUrl());
 			if (repository == null) {
-				return;
+				return false;
 			}
 
 			IWizard wizard = connectorUi.getQueryWizard(repository, query);
@@ -661,13 +681,15 @@ public class TasksUiInternal {
 				dialog.create();
 				dialog.setBlockOnOpen(true);
 				if (dialog.open() == Window.CANCEL) {
-					dialog.close();
-					return;
+					return false;
+				} else {
+					return true;
 				}
 			}
 		} catch (Exception e) {
 			StatusHandler.log(new Status(IStatus.ERROR, TasksUiPlugin.ID_PLUGIN, "Failed to open query dialog", e)); //$NON-NLS-1$
 		}
+		return false;
 	}
 
 	public static ITaskList getTaskList() {
@@ -812,14 +834,14 @@ public class TasksUiInternal {
 			task = TasksUiPlugin.getTaskList().getTaskByKey(repository.getRepositoryUrl(), taskId);
 		}
 		if (task != null) {
-			boolean result = TasksUiUtil.openTask(task);
-			if (listener != null) {
-				if (result) {
-					listener.taskOpened(new TaskOpenEvent(repository, task, taskId));
-				}
+			// task is known, open in task editor
+			TaskOpenEvent event = TasksUiInternal.openTask(task, taskId);
+			if (listener != null && event != null) {
+				listener.taskOpened(event);
 			}
-			return result;
+			return event != null;
 		} else {
+			// search for task
 			AbstractRepositoryConnectorUi connectorUi = TasksUiPlugin.getConnectorUi(repository.getConnectorKind());
 			if (connectorUi != null) {
 				try {
@@ -834,6 +856,95 @@ public class TasksUiInternal {
 		return false;
 	}
 
+	public static TaskOpenEvent openTask(ITask task, String taskId) {
+		Assert.isNotNull(task);
+		IWorkbenchWindow window = PlatformUI.getWorkbench().getActiveWorkbenchWindow();
+		if (window != null) {
+			TaskRepository taskRepository = TasksUi.getRepositoryManager().getRepository(task.getConnectorKind(),
+					task.getRepositoryUrl());
+			boolean openWithBrowser = !TasksUiPlugin.getDefault().getPreferenceStore().getBoolean(
+					ITasksUiPreferenceConstants.EDITOR_TASKS_RICH);
+			if (openWithBrowser) {
+				TasksUiUtil.openWithBrowser(taskRepository, task);
+				return new TaskOpenEvent(taskRepository, task, taskId, null, true);
+			} else {
+				IEditorInput editorInput = getTaskEditorInput(taskRepository, task);
+				IEditorPart editor = refreshEditorContentsIfOpen(task, editorInput);
+				if (editor != null) {
+					synchronizeTask(taskRepository, task);
+					return new TaskOpenEvent(taskRepository, task, taskId, editor, false);
+				} else {
+					IWorkbenchPage page = window.getActivePage();
+					editor = TasksUiUtil.openEditor(editorInput, getTaskEditorId(task), page);
+					if (editor != null) {
+						synchronizeTask(taskRepository, task);
+						return new TaskOpenEvent(taskRepository, task, taskId, editor, false);
+					}
+				}
+			}
+		} else {
+			StatusHandler.log(new Status(IStatus.ERROR, TasksUiPlugin.ID_PLUGIN, "Unable to open editor for \"" //$NON-NLS-1$
+					+ task.getSummary() + "\": no active workbench window")); //$NON-NLS-1$
+		}
+		return null;
+	}
+
+	private static IEditorInput getTaskEditorInput(TaskRepository repository, ITask task) {
+		Assert.isNotNull(task);
+		Assert.isNotNull(repository);
+		AbstractRepositoryConnectorUi connectorUi = TasksUiPlugin.getConnectorUi(task.getConnectorKind());
+		IEditorInput editorInput = connectorUi.getTaskEditorInput(repository, task);
+		if (editorInput != null) {
+			return editorInput;
+		} else {
+			return new TaskEditorInput(repository, task);
+		}
+	}
+
+	private static String getTaskEditorId(final ITask task) {
+		String taskEditorId = TaskEditor.ID_EDITOR;
+		if (task != null) {
+			ITask repositoryTask = task;
+			AbstractRepositoryConnectorUi repositoryUi = TasksUiPlugin.getConnectorUi(repositoryTask.getConnectorKind());
+			String customTaskEditorId = repositoryUi.getTaskEditorId(repositoryTask);
+			if (customTaskEditorId != null) {
+				taskEditorId = customTaskEditorId;
+			}
+		}
+		return taskEditorId;
+	}
+
+	/**
+	 * If task is already open and has incoming, must force refresh in place
+	 */
+	private static IEditorPart refreshEditorContentsIfOpen(ITask task, IEditorInput editorInput) {
+		if (task != null) {
+			if (task.getSynchronizationState() == SynchronizationState.INCOMING
+					|| task.getSynchronizationState() == SynchronizationState.CONFLICT) {
+				for (TaskEditor editor : TasksUiInternal.getActiveRepositoryTaskEditors()) {
+					if (editor.getEditorInput().equals(editorInput)) {
+						editor.refreshPages();
+						editor.getEditorSite().getPage().activate(editor);
+						return editor;
+					}
+				}
+			}
+		}
+		return null;
+	}
+
+	private static void synchronizeTask(TaskRepository taskRepository, ITask task) {
+		if (task instanceof LocalTask) {
+			return;
+		}
+
+		AbstractRepositoryConnector connector = TasksUi.getRepositoryManager().getRepositoryConnector(
+				task.getConnectorKind());
+		if (connector.canSynchronizeTask(taskRepository, task)) {
+			TasksUiInternal.synchronizeTaskInBackground(connector, task);
+		}
+	}
+
 	public static boolean openRepositoryTask(String connectorKind, String repositoryUrl, String id) {
 		return openRepositoryTask(connectorKind, repositoryUrl, id, null);
 	}
@@ -846,6 +957,17 @@ public class TasksUiInternal {
 	 */
 	public static boolean openRepositoryTask(String connectorKind, String repositoryUrl, String id,
 			TaskOpenListener listener) {
+		return openRepositoryTask(connectorKind, repositoryUrl, id, listener, 0);
+	}
+
+	/**
+	 * Only override if task should be opened by a custom editor, default behavior is to open with a rich editor,
+	 * falling back to the web browser if not available.
+	 * 
+	 * @return true if the task was successfully opened
+	 */
+	public static boolean openRepositoryTask(String connectorKind, String repositoryUrl, String id,
+			TaskOpenListener listener, long timestamp) {
 		IRepositoryManager repositoryManager = TasksUi.getRepositoryManager();
 		AbstractRepositoryConnector connector = repositoryManager.getRepositoryConnector(connectorKind);
 		String taskUrl = connector.getTaskUrl(repositoryUrl, id);
@@ -865,7 +987,8 @@ public class TasksUiInternal {
 		}
 		IWorkbenchPage page = window.getActivePage();
 
-		OpenRepositoryTaskJob job = new OpenRepositoryTaskJob(connectorKind, repositoryUrl, id, taskUrl, page);
+		OpenRepositoryTaskJob job = new OpenRepositoryTaskJob(connectorKind, repositoryUrl, id, taskUrl, timestamp,
+				page);
 		job.setListener(listener);
 		job.schedule();
 
@@ -1029,6 +1152,17 @@ public class TasksUiInternal {
 		return null;
 	}
 
+	public static boolean isTaskUrl(String taskUrl) {
+		Assert.isNotNull(taskUrl);
+		List<TaskRepository> repositories = TasksUiPlugin.getRepositoryManager().getAllRepositories();
+		for (TaskRepository repository : repositories) {
+			if (taskUrl.startsWith(repository.getUrl())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/**
 	 * Cleans text for use as the text of an action to ensure that it is displayed properly.
 	 * 
@@ -1129,4 +1263,20 @@ public class TasksUiInternal {
 		throw exception;
 	}
 
+	public static String getAuthenticatedUrl(TaskRepository repository, IRepositoryElement element) {
+		IRepositoryManager repositoryManager = TasksUi.getRepositoryManager();
+		AbstractRepositoryConnector connector = repositoryManager.getRepositoryConnector(repository.getConnectorKind());
+		if (connector != null) {
+			URL authenticatedUrl = connector.getAuthenticatedUrl(repository, element);
+			if (authenticatedUrl != null) {
+				return authenticatedUrl.toString();
+			} else {
+				String url = element.getUrl();
+				if (TasksUiInternal.isValidUrl(url)) {
+					return url;
+				}
+			}
+		}
+		return null;
+	}
 }

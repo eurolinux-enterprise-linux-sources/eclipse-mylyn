@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -55,8 +55,6 @@ public class Messages extends NLS {
 
 	public static String CloneTaskAction_Clone_Task_Failed;
 
-	public static String CloneTaskAction_Clone_This_Task;
-
 	public static String CloneTaskAction_Cloned_from_;
 
 	public static String CollapseAllAction_Collapse_All;
@@ -71,9 +69,15 @@ public class Messages extends NLS {
 
 	public static String CopyCommentDetailsAction_Copy_User_ID_Tooltip;
 
+	public static String CopyCommenterNameAction_Copy_User_Name;
+
+	public static String CopyCommenterNameAction_Copy_User_Name_Tooltip;
+
 	public static String CopyTaskDetailsAction_ID_Menu_Label;
 
 	public static String CopyTaskDetailsAction_Summary_and_Url_Menu_Label;
+
+	public static String CopyTaskDetailsAction_Summary_Menu_Label;
 
 	public static String CopyTaskDetailsAction_Url_Menu_Label;
 

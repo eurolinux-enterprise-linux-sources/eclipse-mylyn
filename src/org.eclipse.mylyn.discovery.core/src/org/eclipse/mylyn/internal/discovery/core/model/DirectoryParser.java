@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009 Tasktop Technologies and others.
+ * Copyright (c) 2009, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -13,6 +13,8 @@ package org.eclipse.mylyn.internal.discovery.core.model;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 import org.eclipse.mylyn.internal.discovery.core.model.Directory.Entry;
 import org.eclipse.mylyn.internal.discovery.core.util.DefaultSaxErrorHandler;
@@ -32,6 +34,24 @@ import org.xml.sax.helpers.XMLReaderFactory;
  * @author David Green
  */
 public class DirectoryParser {
+
+	public DirectoryParser() {
+		// ignore
+	}
+
+	/**
+	 * Base URI for relative entries.
+	 */
+	URI baseUri;
+
+	public URI getBaseUri() {
+		return baseUri;
+	}
+
+	public void setBaseUri(URI baseUri) {
+		this.baseUri = baseUri;
+	}
+
 	/**
 	 * parse the contents of a directory. The caller must close the given reader.
 	 * 
@@ -115,6 +135,15 @@ public class DirectoryParser {
 			} else if (directory != null && "entry".equals(localName)) { //$NON-NLS-1$
 				String url = atts.getValue("", "url"); //$NON-NLS-1$ //$NON-NLS-2$
 				if (url != null && url.length() > 0) {
+					try {
+						URI entryUri = new URI(url);
+						if (baseUri != null && !entryUri.isAbsolute()) {
+							url = baseUri.resolve(url).toString();
+						}
+					} catch (URISyntaxException e) {
+						// ignore
+					}
+
 					Entry entry = new Entry();
 					entry.setLocation(url);
 					entry.setPermitCategories(Boolean.parseBoolean(atts.getValue("permitCategories"))); //$NON-NLS-1$

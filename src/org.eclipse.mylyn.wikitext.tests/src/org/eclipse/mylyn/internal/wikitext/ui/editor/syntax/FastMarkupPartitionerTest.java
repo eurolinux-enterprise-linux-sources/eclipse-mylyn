@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2009 David Green and others.
+ * Copyright (c) 2007, 2010 David Green and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -16,11 +16,10 @@ import org.eclipse.jface.text.Document;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.ITypedRegion;
 import org.eclipse.mylyn.wikitext.confluence.core.ConfluenceLanguage;
+import org.eclipse.mylyn.wikitext.tests.TestUtil;
 import org.eclipse.mylyn.wikitext.textile.core.TextileLanguage;
 
 /**
- * 
- * 
  * @author David Green
  */
 public class FastMarkupPartitionerTest extends AbstractDocumentTest {
@@ -39,8 +38,8 @@ public class FastMarkupPartitionerTest extends AbstractDocumentTest {
 		long nanosEnd = System.nanoTime();
 		long millisEnd = System.currentTimeMillis();
 
-		System.out.println("Elapsed Time in Nanos: " + (nanosEnd - nanos));
-		System.out.println("Elapsed Time in Millis: " + (millisEnd - millis));
+		TestUtil.println("Elapsed Time in Nanos: " + (nanosEnd - nanos));
+		TestUtil.println("Elapsed Time in Millis: " + (millisEnd - millis));
 
 //		assertTrue((nanosEnd - nanos) < 800000000L); removed assert due to bug 261236
 	}
@@ -143,6 +142,29 @@ public class FastMarkupPartitionerTest extends AbstractDocumentTest {
 				{ 29, 5 }, //
 				{ 34, 7 }, //
 				{ 41, 12 } //
+		};
+
+		ITypedRegion[] partitioning = partitioner.computePartitioning(0, document.getLength(), false);
+		assertPartitioningAsExpected(expected, partitioning);
+	}
+
+	/**
+	 * bug 314131
+	 */
+	public void testTextileLinkInBold() {
+		IDocument document = new Document();
+		FastMarkupPartitioner partitioner = new FastMarkupPartitioner();
+		partitioner.setMarkupLanguage(new TextileLanguage());
+
+		document.set("*\"text\":url*");
+		// ...........012345678901.234567.8.9012345678901.234567.
+		// .....................10...........20.........30.......
+
+		partitioner.connect(document);
+		document.setDocumentPartitioner(partitioner);
+
+		int[][] expected = new int[][] { //
+		{ 0, 12 }, //
 		};
 
 		ITypedRegion[] partitioning = partitioner.computePartitioning(0, document.getLength(), false);

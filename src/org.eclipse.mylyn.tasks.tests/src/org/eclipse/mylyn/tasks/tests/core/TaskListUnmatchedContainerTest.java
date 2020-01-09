@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -38,7 +38,7 @@ public class TaskListUnmatchedContainerTest extends TestCase {
 	@Override
 	protected void setUp() throws Exception {
 		taskList = new TaskList();
-		unmatchedContainer = new UnmatchedTaskContainer(MockRepositoryConnector.REPOSITORY_KIND,
+		unmatchedContainer = new UnmatchedTaskContainer(MockRepositoryConnector.CONNECTOR_KIND,
 				MockRepositoryConnector.REPOSITORY_URL);
 		taskList.addUnmatchedContainer(unmatchedContainer);
 	}

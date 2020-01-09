@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2008 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -21,6 +21,7 @@ import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.mylyn.commons.core.StatusHandler;
+import org.eclipse.mylyn.internal.provisional.commons.ui.WorkbenchUtil;
 import org.eclipse.mylyn.internal.tasks.ui.TasksUiPlugin;
 import org.eclipse.mylyn.internal.tasks.ui.actions.AbstractTaskRepositoryAction;
 import org.eclipse.mylyn.internal.tasks.ui.util.TasksUiInternal;
@@ -67,6 +68,9 @@ public class UpdateRepositoryConfigurationAction extends AbstractTaskRepositoryA
 								return Status.OK_STATUS;
 							}
 						};
+						// show the progress in the system task bar if this is a user job (i.e. forced)
+						updateJob.setProperty(WorkbenchUtil.SHOW_IN_TASKBAR_ICON_PROPERTY, Boolean.TRUE);
+						updateJob.setUser(true);
 						updateJob.schedule();
 					}
 				}

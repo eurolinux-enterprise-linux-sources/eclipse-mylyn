@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009 Tasktop Technologies and others.
+ * Copyright (c) 2009, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -146,6 +146,9 @@ public class DefaultTaskSchema {
 
 	public static final Field ATTACHMENT_IS_PATCH = createField(TaskAttribute.ATTACHMENT_IS_PATCH,
 			Messages.DefaultTaskSchema_Patch_Label, TaskAttribute.TYPE_BOOLEAN);
+
+	public static final Field ATTACHMENT_REPLACE_EXISTING = createField(TaskAttribute.ATTACHMENT_REPLACE_EXISTING,
+			Messages.DefaultTaskSchema_Replace_existing_attachment, TaskAttribute.TYPE_BOOLEAN);
 
 	public static final Field ATTACHMENT_SIZE = createField(TaskAttribute.ATTACHMENT_SIZE,
 			Messages.DefaultTaskSchema_Size_Label, TaskAttribute.TYPE_LONG, Flag.READ_ONLY);

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2009 Steffen Pingel and others.
+ * Copyright (c) 2006, 2010 Steffen Pingel and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -188,7 +188,7 @@ public interface ITracClient {
 
 	InputStream getAttachmentData(int ticketId, String filename, IProgressMonitor monitor) throws TracException;
 
-	void putAttachmentData(int ticketId, String name, String description, InputStream source, IProgressMonitor monitor)
+	void putAttachmentData(int ticketId, String name, String description, InputStream source, IProgressMonitor monitor, boolean replace)
 			throws TracException;
 
 	void deleteAttachment(int ticketId, String filename, IProgressMonitor monitor) throws TracException;

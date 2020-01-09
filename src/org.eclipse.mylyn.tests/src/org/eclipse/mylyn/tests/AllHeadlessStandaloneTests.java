@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -17,8 +17,8 @@ import junit.framework.TestSuite;
 import org.eclipse.mylyn.bugzilla.tests.AllBugzillaHeadlessStandaloneTests;
 import org.eclipse.mylyn.commons.tests.net.SslProtocolSocketFactoryTest;
 import org.eclipse.mylyn.commons.tests.net.WebUtilTest;
+import org.eclipse.mylyn.commons.tests.support.ManagedTestSuite;
 import org.eclipse.mylyn.discovery.tests.AllDiscoveryTests;
-import org.eclipse.mylyn.jira.tests.AllJiraHeadlessStandaloneTests;
 import org.eclipse.mylyn.tasks.tests.TaskListTest;
 import org.eclipse.mylyn.tasks.tests.TasksUtilTest;
 import org.eclipse.mylyn.tasks.tests.core.ITasksCoreConstantsTest;
@@ -32,7 +32,7 @@ import org.eclipse.mylyn.trac.tests.AllTracHeadlessStandaloneTests;
 public class AllHeadlessStandaloneTests {
 
 	public static Test suite() {
-		TestSuite suite = new TestSuite("Tests not requiring Eclipse Workbench");
+		TestSuite suite = new ManagedTestSuite("Tests not requiring Eclipse Workbench");
 
 		// commons
 		suite.addTestSuite(WebUtilTest.class);
@@ -62,9 +62,6 @@ public class AllHeadlessStandaloneTests {
 
 		// trac
 		suite.addTest(AllTracHeadlessStandaloneTests.suite());
-
-		// jira
-		suite.addTest(AllJiraHeadlessStandaloneTests.suite());
 
 		return suite;
 	}

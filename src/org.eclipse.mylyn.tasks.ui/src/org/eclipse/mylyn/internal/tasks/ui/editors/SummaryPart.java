@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -70,10 +70,13 @@ public class SummaryPart extends AbstractLocalEditorPart {
 
 	private void createSummaryControl(Composite composite, final FormToolkit toolkit) {
 		Composite borderComposite = EditorUtil.createBorder(composite, toolkit);
-		GridDataFactory.fillDefaults().align(SWT.FILL, SWT.CENTER).hint(EditorUtil.MAXIMUM_WIDTH, SWT.DEFAULT).grab(
-				true, false).applyTo(borderComposite);
+		GridDataFactory.fillDefaults()
+				.align(SWT.FILL, SWT.CENTER)
+				.hint(EditorUtil.MAXIMUM_WIDTH, SWT.DEFAULT)
+				.grab(true, false)
+				.applyTo(borderComposite);
 
-		summaryEditor = new RichTextEditor(getRepository(), SWT.SINGLE);
+		summaryEditor = new RichTextEditor(getRepository(), SWT.SINGLE, null, null, getTask());
 		summaryEditor.setSpellCheckingEnabled(true);
 		summaryEditor.setReadOnly(!isSummaryEditable());
 		summaryEditor.createControl(borderComposite, toolkit);

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -71,7 +71,7 @@ public class ContextPerspectiveManagerTest extends TestCase {
 		assertEquals(ID_PLANNING_PERSPECTIVE, getActivePerspective());
 	}
 
-	// FIXME 3.4 re-enable test
+	// FIXME 3.5 re-enable test
 //	public void testRecreateTask() throws Exception {
 //		PlatformUI.getWorkbench().showPerspective(ID_RESOURCE_PERSPECTIVE, MonitorUi.getLaunchingWorkbenchWindow());
 //		TaskTask task = TaskTestUtil.createMockTask("1");

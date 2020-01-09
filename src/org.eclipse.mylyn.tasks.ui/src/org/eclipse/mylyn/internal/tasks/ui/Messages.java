@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -35,6 +35,12 @@ public class Messages extends NLS {
 
 	public static String DialogErrorReporter_Please_report_the_following_error_at;
 
+	public static String DownloadAndOpenTaskAttachmentJob_cannotOpenEditor;
+
+	public static String DownloadAndOpenTaskAttachmentJob_editorTooltip;
+
+	public static String DownloadAndOpenTaskAttachmentJob_failedToDownloadAttachment;
+
 	public static String MoveToCategoryMenuContributor_Move_to;
 
 	public static String OpenRepositoryTaskJob_Could_not_find_repository_configuration_for_X;
@@ -64,6 +70,10 @@ public class Messages extends NLS {
 	public static String ScheduleTaskMenuContributor_Schedule_for;
 
 	public static String TaskActivationExternalizationParticipant_Task_Activation_History;
+	public static String TaskAttachmentEditorViewer_openingAttachment;
+	public static String TaskAttachmentEditorViewer_ErrorDownloadingAttachment;
+
+	public static String TaskAttachmentViewerBrowser_browser;
 
 	public static String TaskHistoryDropDown_Activate_Task_;
 
@@ -91,7 +101,7 @@ public class Messages extends NLS {
 
 	public static String TaskSearchPage_Repository_Search;
 
-	public static String TaskSearchPage_Select_Repository_;
+	public static String TaskSearchPage_Repository;
 
 	public static String TaskSearchPage_Task_Key_ID;
 
@@ -111,11 +121,15 @@ public class Messages extends NLS {
 
 	public static String TasksReminderDialog_Reminders;
 
+	public static String TasksUiPlugin_Activate_Task;
+	
 	public static String TasksUiPlugin_Initializing_Task_List;
 
 	public static String TasksUiPlugin_Task_Repositories;
 
 	public static String TasksUiPlugin_Load_Data_Directory;
+
+	public static String TasksUiPlugin_New_Task;
 
 	public static String TaskTrimWidget__no_active_task_;
 
@@ -130,5 +144,7 @@ public class Messages extends NLS {
 	public static String TaskHyperlink_Open_Task_X_in_X;
 
 	public static String AbstractRetrieveTitleFromUrlJob_Retrieving_summary_from_URL;
+
+	public static String FileStorage_unableToReadAttachmentFile;
 
 }

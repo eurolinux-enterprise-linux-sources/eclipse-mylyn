@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -106,7 +106,9 @@ class TaskListCellModifier implements ICellModifier {
 		} catch (Exception e) {
 			StatusHandler.fail(new Status(IStatus.ERROR, TasksUiPlugin.ID_PLUGIN, e.getMessage(), e));
 		}
-		this.taskListView.refresh();//.getViewer().refresh();
+
+		// XXX trigger a full refresh to ensure correct sorting
+		this.taskListView.refresh();
 	}
 
 	public void toggleTaskActivation(TreeItem element) {

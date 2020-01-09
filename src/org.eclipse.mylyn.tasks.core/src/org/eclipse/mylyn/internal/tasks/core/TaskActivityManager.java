@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -660,9 +660,20 @@ public class TaskActivityManager implements ITaskActivityManager {
 		return false;
 	}
 
+	/**
+	 * Tests if the task is owned by the current user and overdue.
+	 */
 	public boolean isOverdue(ITask task) {
 		return (!task.isCompleted() && task.getDueDate() != null && new Date().after(task.getDueDate()))
 				&& repositoryManager.isOwnedByUser(task);
+	}
+
+	/**
+	 * Tests whether the task is owned by another user and overdue.
+	 */
+	public boolean isOverdueForOther(ITask task) {
+		return (!task.isCompleted() && task.getDueDate() != null && new Date().after(task.getDueDate()))
+				&& !repositoryManager.isOwnedByUser(task);
 	}
 
 	public boolean isOwnedByUser(ITask task) {

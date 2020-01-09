@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2009 David Green and others.
+ * Copyright (c) 2007, 2010 David Green and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -31,8 +31,6 @@ import org.eclipse.osgi.util.NLS;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.graphics.Font;
 
-
-
 /**
  * A token scanner that uses the results of the {@link FastMarkupPartitioner} to identify tokens.
  * 
@@ -44,18 +42,37 @@ public class MarkupTokenScanner implements ITokenScanner {
 
 	private Iterator<Token> tokenIt = null;
 
-	private final CssStyleManager styleManager;
+	private CssStyleManager styleManager;
 
-	private final FontState defaultState;
+	private FontState defaultState;
 
 	private Preferences preferences;
 
 	private final CssParser cssParser = new CssParser();
 
 	public MarkupTokenScanner(Font defaultFont, Font defaultMonospaceFont) {
+		initialize(defaultFont, defaultMonospaceFont);
+		reloadPreferences();
+	}
+
+	/**
+	 * Reset the fonts used by this token scanner.
+	 * 
+	 * @param defaultFont
+	 *            the default font, must not be null.
+	 * @param defaultMonospaceFont
+	 *            the default monospace font, or null if a suitable default should be selected
+	 */
+	public void resetFonts(Font defaultFont, Font defaultMonospaceFont) {
+		if (defaultFont == null) {
+			throw new IllegalArgumentException();
+		}
+		initialize(defaultFont, defaultMonospaceFont);
+	}
+
+	private void initialize(Font defaultFont, Font defaultMonospaceFont) {
 		styleManager = new CssStyleManager(defaultFont, defaultMonospaceFont);
 		defaultState = styleManager.createDefaultFontState();
-		reloadPreferences();
 	}
 
 	public void reloadPreferences() {
@@ -98,8 +115,7 @@ public class MarkupTokenScanner implements ITokenScanner {
 				Token defaultToken;
 				{
 					StyleRange styleRange = styleManager.createStyleRange(defaultState, 0, 1);
-					TextAttribute textAttribute = new TextAttribute(styleRange.foreground, styleRange.background,
-							styleRange.fontStyle, styleRange.font);
+					TextAttribute textAttribute = createTextAttribute(styleRange);
 					defaultToken = new Token(defaultState, textAttribute, offset, length);
 				}
 				if (partitions != null) {
@@ -145,7 +161,7 @@ public class MarkupTokenScanner implements ITokenScanner {
 
 										Token[] spanTokens = null;
 										if (!span.getChildren().isEmpty()) {
-											spanTokens = splitSpan(spanToken, span);
+											spanTokens = splitSpan(spanToken, span, defaultToken);
 										}
 										if (spanTokens != null) {
 											for (Token spanSplitToken : spanTokens) {
@@ -205,13 +221,24 @@ public class MarkupTokenScanner implements ITokenScanner {
 
 	}
 
+	protected TextAttribute createTextAttribute(StyleRange styleRange) {
+		int fontStyle = styleRange.fontStyle;
+		if (styleRange.strikeout) {
+			fontStyle |= TextAttribute.STRIKETHROUGH;
+		}
+		if (styleRange.underline) {
+			fontStyle |= TextAttribute.UNDERLINE;
+		}
+		return new TextAttribute(styleRange.foreground, styleRange.background, fontStyle, styleRange.font);
+	}
+
 	/**
 	 * handle nested spans: given a token for a specific span, split it into one or more tokens based on analyzing its
 	 * children
 	 * 
 	 * @return an array of tokens that contiguously cover the region represented by the original span.
 	 */
-	private Token[] splitSpan(Token spanToken, Span span) {
+	private Token[] splitSpan(Token spanToken, Span span, Token defaultToken) {
 		List<Token> tokens = new ArrayList<Token>(span.getChildren().size() + 1);
 		int previousEnd = spanToken.offset;
 		for (Span child : span.getChildren().asList()) {
@@ -220,11 +247,16 @@ public class MarkupTokenScanner implements ITokenScanner {
 						- previousEnd));
 			}
 			Token childToken = createToken(spanToken.fontState, child);
+			if (childToken == null) {
+				StyleRange styleRange = styleManager.createStyleRange(spanToken.fontState, 0, 1);
+				TextAttribute textAttribute = createTextAttribute(styleRange);
+				childToken = new Token(spanToken.fontState, textAttribute, child.getOffset(), child.getLength());
+			}
 			if (child.getChildren().isEmpty()) {
 				tokens.add(childToken);
 			} else {
 				// recursively apply to children
-				for (Token t : splitSpan(childToken, child)) {
+				for (Token t : splitSpan(childToken, child, defaultToken)) {
 					tokens.add(t);
 				}
 			}
@@ -324,8 +356,7 @@ public class MarkupTokenScanner implements ITokenScanner {
 		}
 		StyleRange styleRange = styleManager.createStyleRange(fontState, 0, 1);
 
-		TextAttribute textAttribute = new TextAttribute(styleRange.foreground, styleRange.background,
-				styleRange.fontStyle, styleRange.font);
+		TextAttribute textAttribute = createTextAttribute(styleRange);
 		return new Token(fontState, textAttribute, span.getOffset(), span.getLength());
 	}
 
@@ -345,8 +376,7 @@ public class MarkupTokenScanner implements ITokenScanner {
 		}
 		StyleRange styleRange = styleManager.createStyleRange(fontState, 0, 1);
 
-		TextAttribute textAttribute = new TextAttribute(styleRange.foreground, styleRange.background,
-				styleRange.fontStyle, styleRange.font);
+		TextAttribute textAttribute = createTextAttribute(styleRange);
 		return new Token(fontState, textAttribute, partition.getOffset(), partition.getLength());
 	}
 

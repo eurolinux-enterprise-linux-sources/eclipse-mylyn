@@ -1,12 +1,13 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
- *
- * Contributors:
- *     Tasktop Technologies - initial API and implementation
+ *  Copyright (c) 2006, 2010 IBM Corporation and others.
+ *  All rights reserved. This program and the accompanying materials
+ *  are made available under the terms of the Eclipse Public License v1.0
+ *  which accompanies this distribution, and is available at
+ *  http://www.eclipse.org/legal/epl-v10.html
+ * 
+ *  Contributors:
+ *     IBM Corporation - initial API and implementation
+ *     Tasktop Technologies - adapted for Mylyn
  *******************************************************************************/
 
 package org.eclipse.mylyn.internal.context.ui.views;
@@ -53,7 +54,7 @@ import org.eclipse.ui.internal.misc.StringMatcher;
 import org.eclipse.ui.navigator.CommonViewer;
 
 /**
- * Derived from {@link QuickOutlinePopupDialog}
+ * Derived from {@link QuickOutlinePopupDialog}.
  * 
  * @author Mik Kersten
  */
@@ -123,7 +124,7 @@ public class QuickContextPopupDialog extends PopupDialog implements IInformation
 	protected CommonViewer createCommonViewer(Composite parent) {
 		CommonViewer viewer = new CommonViewer(ID_VIEWER, parent, SWT.H_SCROLL | SWT.V_SCROLL);
 		viewer.setUseHashlookup(true);
-		viewer.getControl().setLayoutData(new GridData(500, 400));
+		viewer.getControl().setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 		return viewer;
 	}
 
@@ -200,6 +201,11 @@ public class QuickContextPopupDialog extends PopupDialog implements IInformation
 
 	public void dispose() {
 		close();
+	}
+
+	@Override
+	protected Point getDefaultSize() {
+		return new Point(400, 300);
 	}
 
 	public boolean isFocusControl() {

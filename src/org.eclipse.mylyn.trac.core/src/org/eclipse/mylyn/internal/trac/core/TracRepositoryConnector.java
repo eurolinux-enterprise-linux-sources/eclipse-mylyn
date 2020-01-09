@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2009 Steffen Pingel and others.
+ * Copyright (c) 2006, 2010 Steffen Pingel and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -33,8 +33,8 @@ import org.eclipse.mylyn.commons.net.AuthenticationType;
 import org.eclipse.mylyn.commons.net.Policy;
 import org.eclipse.mylyn.internal.trac.core.client.AbstractWikiHandler;
 import org.eclipse.mylyn.internal.trac.core.client.ITracClient;
-import org.eclipse.mylyn.internal.trac.core.client.ITracWikiClient;
 import org.eclipse.mylyn.internal.trac.core.client.ITracClient.Version;
+import org.eclipse.mylyn.internal.trac.core.client.ITracWikiClient;
 import org.eclipse.mylyn.internal.trac.core.model.TracPriority;
 import org.eclipse.mylyn.internal.trac.core.model.TracSearch;
 import org.eclipse.mylyn.internal.trac.core.model.TracTicket;
@@ -42,10 +42,10 @@ import org.eclipse.mylyn.internal.trac.core.util.TracUtil;
 import org.eclipse.mylyn.tasks.core.AbstractRepositoryConnector;
 import org.eclipse.mylyn.tasks.core.IRepositoryQuery;
 import org.eclipse.mylyn.tasks.core.ITask;
+import org.eclipse.mylyn.tasks.core.ITask.PriorityLevel;
 import org.eclipse.mylyn.tasks.core.RepositoryStatus;
 import org.eclipse.mylyn.tasks.core.TaskRepository;
 import org.eclipse.mylyn.tasks.core.TaskRepositoryLocationFactory;
-import org.eclipse.mylyn.tasks.core.ITask.PriorityLevel;
 import org.eclipse.mylyn.tasks.core.data.TaskAttribute;
 import org.eclipse.mylyn.tasks.core.data.TaskData;
 import org.eclipse.mylyn.tasks.core.data.TaskDataCollector;
@@ -59,7 +59,7 @@ import org.eclipse.mylyn.tasks.core.sync.ISynchronizationSession;
 public class TracRepositoryConnector extends AbstractRepositoryConnector {
 
 	public enum TaskKind {
-		DEFECT, ENHANCEMENT, TASK;
+		DEFECT, ENHANCEMENT, TASK, STORY;
 
 		public static TaskKind fromString(String type) {
 			if (type == null) {
@@ -74,6 +74,9 @@ public class TracRepositoryConnector extends AbstractRepositoryConnector {
 			if (type.equals("Task")) { //$NON-NLS-1$
 				return TASK;
 			}
+			if (type.equals("Story")) { //$NON-NLS-1$
+				return STORY;
+			}
 			return null;
 		}
 
@@ -81,7 +84,7 @@ public class TracRepositoryConnector extends AbstractRepositoryConnector {
 			if (type == null) {
 				return null;
 			}
-			if (type.equals("defect")) { //$NON-NLS-1$
+			if (type.equals("defect") || type.equals("error")) { //$NON-NLS-1$ //$NON-NLS-2$
 				return DEFECT;
 			}
 			if (type.equals("enhancement")) { //$NON-NLS-1$
@@ -89,6 +92,9 @@ public class TracRepositoryConnector extends AbstractRepositoryConnector {
 			}
 			if (type.equals("task")) { //$NON-NLS-1$
 				return TASK;
+			}
+			if (type.equals("story")) { //$NON-NLS-1$
+				return STORY;
 			}
 			return null;
 		}
@@ -102,6 +108,8 @@ public class TracRepositoryConnector extends AbstractRepositoryConnector {
 				return "Enhancement"; //$NON-NLS-1$
 			case TASK:
 				return "Task"; //$NON-NLS-1$
+			case STORY:
+				return "Story"; //$NON-NLS-1$
 			default:
 				return ""; //$NON-NLS-1$
 			}
@@ -573,6 +581,9 @@ public class TracRepositoryConnector extends AbstractRepositoryConnector {
 			try {
 				ITracClient client = getClientManager().getTracClient(repository);
 				Set<Integer> ids = client.getChangedTickets(since, monitor);
+//				if (CoreUtil.TEST_MODE) {
+//					System.err.println(" preSynchronization(): since=" + since.getTime() + ",changed=" + ids); //$NON-NLS-1$ //$NON-NLS-2$ 
+//				}
 				if (ids.isEmpty()) {
 					// repository is unchanged
 					session.setNeedsPerformQueries(false);
@@ -586,6 +597,9 @@ public class TracRepositoryConnector extends AbstractRepositoryConnector {
 					// most recent modification date
 					Integer id = ids.iterator().next();
 					Date lastChanged = client.getTicketLastChanged(id, monitor);
+//					if (CoreUtil.TEST_MODE) {
+//						System.err.println(" preSynchronization(): since=" + since.getTime() + ", lastChanged=" + lastChanged.getTime()); //$NON-NLS-1$ //$NON-NLS-2$
+//					}
 					if (since.equals(lastChanged)) {
 						// repository didn't actually change
 						session.setNeedsPerformQueries(false);

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2008 David Green and others.
+ * Copyright (c) 2007, 2010 David Green and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -13,9 +13,6 @@ package org.eclipse.mylyn.internal.wikitext.textile.core.block;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.eclipse.mylyn.wikitext.core.parser.Attributes;
-import org.eclipse.mylyn.wikitext.core.parser.DocumentBuilder.BlockType;
-import org.eclipse.mylyn.wikitext.core.parser.markup.Block;
 import org.eclipse.mylyn.wikitext.core.parser.outline.OutlineItem;
 import org.eclipse.mylyn.wikitext.core.parser.outline.OutlineParser;
 import org.eclipse.mylyn.wikitext.textile.core.TextileLanguage;
@@ -25,15 +22,11 @@ import org.eclipse.mylyn.wikitext.textile.core.TextileLanguage;
  * 
  * @author David Green
  */
-public class TableOfContentsBlock extends Block {
+public class TableOfContentsBlock extends AbstractTableOfContentsBlock {
 
 	static final Pattern startPattern = Pattern.compile("\\s*\\{toc(?::([^\\}]+))?\\}\\s*"); //$NON-NLS-1$
 
 	private int blockLineNumber = 0;
-
-	private String style = "none"; //$NON-NLS-1$
-
-	private int maxLevel = Integer.MAX_VALUE;
 
 	private Matcher matcher;
 
@@ -74,25 +67,6 @@ public class TableOfContentsBlock extends Block {
 		return -1;
 	}
 
-	private void emitToc(OutlineItem item) {
-		if (item.getChildren().isEmpty()) {
-			return;
-		}
-		if ((item.getLevel() + 1) > maxLevel) {
-			return;
-		}
-		Attributes nullAttributes = new Attributes();
-
-		builder.beginBlock(BlockType.NUMERIC_LIST, new Attributes(null, null, "list-style: " + style + ";", null)); //$NON-NLS-1$ //$NON-NLS-2$
-		for (OutlineItem child : item.getChildren()) {
-			builder.beginBlock(BlockType.LIST_ITEM, nullAttributes);
-			builder.link('#' + child.getId(), child.getLabel());
-			emitToc(child);
-			builder.endBlock();
-		}
-		builder.endBlock();
-	}
-
 	@Override
 	public boolean canStart(String line, int lineOffset) {
 		if (lineOffset == 0 && !getMarkupLanguage().isFilterGenerativeContents()) {
@@ -103,22 +77,6 @@ public class TableOfContentsBlock extends Block {
 			matcher = null;
 			return false;
 		}
-	}
-
-	public String getStyle() {
-		return style;
-	}
-
-	public void setStyle(String style) {
-		this.style = style;
-	}
-
-	public int getMaxLevel() {
-		return maxLevel;
-	}
-
-	public void setMaxLevel(int maxLevel) {
-		this.maxLevel = maxLevel;
 	}
 
 }

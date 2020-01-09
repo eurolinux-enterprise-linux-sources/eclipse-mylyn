@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -138,7 +138,7 @@ public class BrowserPreviewViewer {
 						browser.getDisplay().asyncExec(new Runnable() {
 							public void run() {
 								setText(browser, job.getHtmlText());
-								// TODO 3.4 error handling
+								// TODO 3.5 error handling
 								//getAttributeEditorManager().setMessage(null, IMessageProvider.NONE);
 							}
 						});
@@ -146,7 +146,7 @@ public class BrowserPreviewViewer {
 						browser.getDisplay().asyncExec(new Runnable() {
 							public void run() {
 								TasksUiInternal.displayStatus(Messages.BrowserPreviewViewer_Error, job.getStatus());
-								// TODO 3.4 error handling
+								// TODO 3.5 error handling
 								//getAttributeEditorManager().setMessage(job.getStatus().getMessage(), IMessageProvider.ERROR);
 							}
 						});

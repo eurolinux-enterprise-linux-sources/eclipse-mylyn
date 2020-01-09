@@ -26,8 +26,6 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.IBundleGroup;
-import org.eclipse.core.runtime.IBundleGroupProvider;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.MultiStatus;
@@ -40,6 +38,7 @@ import org.eclipse.jface.layout.GridLayoutFactory;
 import org.eclipse.jface.operation.IRunnableContext;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.resource.ColorRegistry;
+import org.eclipse.jface.resource.FontDescriptor;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.jface.viewers.DecorationOverlayIcon;
@@ -716,6 +715,15 @@ public class DiscoveryViewer {
 		container.addDisposeListener(new DisposeListener() {
 			public void widgetDisposed(DisposeEvent e) {
 				refreshJob.cancel();
+				if (disposables != null) {
+					for (Resource resource : disposables) {
+						resource.dispose();
+					}
+					clearDisposables();
+				}
+				if (discovery != null) {
+					discovery.dispose();
+				}
 			}
 		});
 		GridLayout layout = new GridLayout(1, false);
@@ -1038,16 +1046,6 @@ public class DiscoveryViewer {
 		selectionProvider.setSelection(StructuredSelection.EMPTY);
 	}
 
-	public void dispose() {
-		for (Resource resource : disposables) {
-			resource.dispose();
-		}
-		clearDisposables();
-		if (discovery != null) {
-			discovery.dispose();
-		}
-	}
-
 	private boolean filterMatches(String text) {
 		return text != null && filterPattern.matcher(text).find();
 	}
@@ -1216,27 +1214,26 @@ public class DiscoveryViewer {
 		}
 	}
 
+	private FontDescriptor createFontDescriptor(int style, float heightMultiplier) {
+		Font baseFont = JFaceResources.getDialogFont();
+		FontData[] fontData = baseFont.getFontData();
+		FontData[] newFontData = new FontData[fontData.length];
+		for (int i = 0; i < newFontData.length; i++) {
+			newFontData[i] = new FontData(fontData[i].getName(), (int) (fontData[i].getHeight() * heightMultiplier),
+					fontData[i].getStyle() | style);
+		}
+		return FontDescriptor.createFrom(newFontData);
+	}
+
 	private void initializeFonts() {
 		// create a level-2 heading font
 		if (h2Font == null) {
-			Font baseFont = JFaceResources.getDialogFont();
-			FontData[] fontData = baseFont.getFontData();
-			for (FontData data : fontData) {
-				data.setStyle(data.getStyle() | SWT.BOLD);
-				data.height = data.height * 1.25f;
-			}
-			h2Font = new Font(Display.getCurrent(), fontData);
+			h2Font = new Font(Display.getCurrent(), createFontDescriptor(SWT.BOLD, 1.25f).getFontData());
 			disposables.add(h2Font);
 		}
 		// create a level-1 heading font
 		if (h1Font == null) {
-			Font baseFont = JFaceResources.getDialogFont();
-			FontData[] fontData = baseFont.getFontData();
-			for (FontData data : fontData) {
-				data.setStyle(data.getStyle() | SWT.BOLD);
-				data.height = data.height * 1.35f;
-			}
-			h1Font = new Font(Display.getCurrent(), fontData);
+			h1Font = new Font(Display.getCurrent(), createFontDescriptor(SWT.BOLD, 1.35f).getFontData());
 			disposables.add(h1Font);
 		}
 	}
@@ -1537,18 +1534,7 @@ public class DiscoveryViewer {
 	}
 
 	protected Set<String> getInstalledFeatures(IProgressMonitor monitor) throws InterruptedException {
-		Set<String> installedFeatures = new HashSet<String>();
-		IBundleGroupProvider[] bundleGroupProviders = Platform.getBundleGroupProviders();
-		for (IBundleGroupProvider provider : bundleGroupProviders) {
-			if (monitor.isCanceled()) {
-				throw new InterruptedException();
-			}
-			IBundleGroup[] bundleGroups = provider.getBundleGroups();
-			for (IBundleGroup group : bundleGroups) {
-				installedFeatures.add(group.getIdentifier());
-			}
-		}
-		return installedFeatures;
+		return DiscoveryUi.createInstallJob().getInstalledFeatures(monitor);
 	}
 
 }

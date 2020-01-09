@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Mylyn project committers and others.
+ * Copyright (c) 2004, 2010 Mylyn project committers and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -170,7 +170,7 @@ public class LandmarkMarkerManager extends AbstractContextListener {
 				} catch (CModelException e) {
 					// ignore the Java Model errors
 				} catch (CoreException e) {
-					StatusHandler.fail(new Status(IStatus.ERROR, CDTUIBridgePlugin.ID_PLUGIN,
+					StatusHandler.log(new Status(IStatus.ERROR, CDTUIBridgePlugin.ID_PLUGIN,
 							"could not update landmark markers", e)); //$NON-NLS-1$
 				}
 			}

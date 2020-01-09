@@ -1,0 +1,29 @@
+--- org.eclipse.mylyn.wikitext.mediawiki.core/src_ant/org/eclipse/mylyn/internal/wikitext/mediawiki/core/tasks/MediaWikiApiImageFetchingStrategy.java.sav	2010-06-09 02:05:09.000000000 +0300
++++ org.eclipse.mylyn.wikitext.mediawiki.core/src_ant/org/eclipse/mylyn/internal/wikitext/mediawiki/core/tasks/MediaWikiApiImageFetchingStrategy.java	2010-09-01 13:52:52.894189355 +0300
+@@ -42,7 +42,7 @@ import org.xml.sax.XMLReader;
+ 
+ class MediaWikiApiImageFetchingStrategy extends ImageFetchingStrategy {
+ 
+-	private final Pattern imageTitlePattern = Pattern.compile("Image:(.+)"); //$NON-NLS-1$
++	private final Pattern imageTitlePattern = Pattern.compile("(?:Image|File):(.+)"); //$NON-NLS-1$
+ 
+ 	private URL url;
+ 
+@@ -112,10 +112,14 @@ class MediaWikiApiImageFetchingStrategy 
+ 					String name = titleMatcher.group(1);
+ 					name = name.replace(' ', '_');
+ 					String qualifiedUrl = base;
+-					if (imageUrl.startsWith("/")) { //$NON-NLS-1$
+-						qualifiedUrl += imageUrl.substring(0);
++					if (imageUrl.matches("https?://.*")) { //$NON-NLS-1$
++						qualifiedUrl = imageUrl;
+ 					} else {
+-						qualifiedUrl += imageUrl;
++						if (imageUrl.startsWith("/")) { //$NON-NLS-1$
++							qualifiedUrl += imageUrl.substring(0);
++						} else {
++							qualifiedUrl += imageUrl;
++						}
+ 					}
+ 
+ 					log("Fetching " + qualifiedUrl, Project.MSG_INFO); //$NON-NLS-1$

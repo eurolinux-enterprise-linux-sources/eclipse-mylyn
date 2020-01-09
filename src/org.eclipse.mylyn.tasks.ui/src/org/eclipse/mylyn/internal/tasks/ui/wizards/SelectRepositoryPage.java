@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -26,26 +26,31 @@ import org.eclipse.jface.layout.GridDataFactory;
 import org.eclipse.jface.viewers.DecoratingLabelProvider;
 import org.eclipse.jface.viewers.IOpenListener;
 import org.eclipse.jface.viewers.ISelectionChangedListener;
-import org.eclipse.jface.viewers.IStructuredContentProvider;
 import org.eclipse.jface.viewers.IStructuredSelection;
+import org.eclipse.jface.viewers.ITreeContentProvider;
 import org.eclipse.jface.viewers.OpenEvent;
 import org.eclipse.jface.viewers.SelectionChangedEvent;
 import org.eclipse.jface.viewers.StructuredSelection;
-import org.eclipse.jface.viewers.TableViewer;
+import org.eclipse.jface.viewers.TreePath;
+import org.eclipse.jface.viewers.TreeSelection;
+import org.eclipse.jface.viewers.TreeViewer;
 import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.jface.wizard.IWizard;
 import org.eclipse.jface.wizard.IWizardNode;
 import org.eclipse.jface.wizard.WizardDialog;
 import org.eclipse.jface.wizard.WizardSelectionPage;
 import org.eclipse.mylyn.internal.provisional.commons.ui.CommonImages;
+import org.eclipse.mylyn.internal.tasks.core.Category;
 import org.eclipse.mylyn.internal.tasks.core.ITaskRepositoryFilter;
 import org.eclipse.mylyn.internal.tasks.core.LocalRepositoryConnector;
 import org.eclipse.mylyn.internal.tasks.core.TaskRepositoryManager;
 import org.eclipse.mylyn.internal.tasks.ui.TasksUiPlugin;
 import org.eclipse.mylyn.internal.tasks.ui.actions.AddRepositoryAction;
 import org.eclipse.mylyn.internal.tasks.ui.util.TasksUiInternal;
-import org.eclipse.mylyn.internal.tasks.ui.views.TaskRepositoriesSorter;
+import org.eclipse.mylyn.internal.tasks.ui.views.GradientDrawer;
+import org.eclipse.mylyn.internal.tasks.ui.views.TaskRepositoriesViewSorter;
 import org.eclipse.mylyn.internal.tasks.ui.views.TaskRepositoryLabelProvider;
+import org.eclipse.mylyn.internal.tasks.ui.views.TeamRepositoriesContentProvider;
 import org.eclipse.mylyn.tasks.core.AbstractRepositoryConnector;
 import org.eclipse.mylyn.tasks.core.TaskRepository;
 import org.eclipse.mylyn.tasks.ui.TasksUi;
@@ -60,9 +65,10 @@ import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.Table;
+import org.eclipse.swt.widgets.Tree;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.handlers.IHandlerService;
+import org.eclipse.ui.themes.IThemeManager;
 
 /**
  * @author Mik Kersten
@@ -72,7 +78,7 @@ import org.eclipse.ui.handlers.IHandlerService;
  */
 public abstract class SelectRepositoryPage extends WizardSelectionPage {
 
-	private TableViewer viewer;
+	private TreeViewer viewer;
 
 	protected MultiRepositoryAwareWizard wizard;
 
@@ -80,17 +86,36 @@ public abstract class SelectRepositoryPage extends WizardSelectionPage {
 
 	private final ITaskRepositoryFilter taskRepositoryFilter;
 
-	class RepositoryContentProvider implements IStructuredContentProvider {
+	private TeamRepositoriesContentProvider contentProvider;
 
-		public void inputChanged(Viewer v, Object oldInput, Object newInput) {
+	class RepositoryContentProvider implements ITreeContentProvider {
+
+		public Object[] getChildren(Object parentElement) {
+			return null;
+		}
+
+		public Object getParent(Object element) {
+			return null;
+		}
+
+		public boolean hasChildren(Object element) {
+			return false;
+		}
+
+		public Object[] getElements(Object inputElement) {
+			return repositories.toArray();
 		}
 
 		public void dispose() {
+			// ignore
+
 		}
 
-		public Object[] getElements(Object parent) {
-			return repositories.toArray();
+		public void inputChanged(Viewer viewer, Object oldInput, Object newInput) {
+			// ignore
+
 		}
+
 	}
 
 	public SelectRepositoryPage(ITaskRepositoryFilter taskRepositoryFilter) {
@@ -123,11 +148,11 @@ public abstract class SelectRepositoryPage extends WizardSelectionPage {
 		GridLayout layout = new GridLayout(1, true);
 		container.setLayout(layout);
 
-		Table table = createTableViewer(container);
-		viewer.setSorter(new TaskRepositoriesSorter());
+		Tree tree = createTableViewer(container);
+		viewer.setSorter(new TaskRepositoriesViewSorter());
 
 		GridData gridData = new GridData(GridData.FILL_BOTH | GridData.GRAB_HORIZONTAL | GridData.GRAB_VERTICAL);
-		table.setLayoutData(gridData);
+		tree.setLayoutData(gridData);
 
 		Composite buttonContainer = new Composite(container, SWT.NULL);
 		GridLayout buttonLayout = new GridLayout(2, false);
@@ -182,9 +207,12 @@ public abstract class SelectRepositoryPage extends WizardSelectionPage {
 		setControl(container);
 	}
 
-	protected Table createTableViewer(Composite container) {
-		viewer = new TableViewer(container, SWT.SINGLE | SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL);
+	protected Tree createTableViewer(Composite container) {
+		viewer = new TreeViewer(container, SWT.SINGLE | SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL);
+//		contentProvider = new TeamRepositoriesContentProvider();
 		viewer.setContentProvider(new RepositoryContentProvider());
+//		ViewerFilter[] filters = { new EmptyCategoriesFilter(contentProvider) };
+//		viewer.setFilters(filters);
 		// viewer.setLabelProvider(new TaskRepositoryLabelProvider());
 		viewer.setLabelProvider(new DecoratingLabelProvider(new TaskRepositoryLabelProvider(),
 				PlatformUI.getWorkbench().getDecoratorManager().getLabelDecorator()));
@@ -197,6 +225,7 @@ public abstract class SelectRepositoryPage extends WizardSelectionPage {
 					setSelectedNode(new CustomWizardNode((TaskRepository) selection.getFirstElement()));
 					setPageComplete(true);
 				} else {
+					setSelectedNode(null);
 					setPageComplete(false);
 				}
 			}
@@ -204,12 +233,23 @@ public abstract class SelectRepositoryPage extends WizardSelectionPage {
 
 		TaskRepository selectedRepository = TasksUiUtil.getSelectedRepository(null);
 		if (selectedRepository != null) {
-			viewer.setSelection(new StructuredSelection(selectedRepository));
+			Category category = ((TaskRepositoryManager) TasksUi.getRepositoryManager()).getCategory(selectedRepository);
+			Object[] path = { category, selectedRepository };
+			viewer.setSelection(new TreeSelection(new TreePath(path)));
 		} else {
 			TaskRepository localRepository = TasksUi.getRepositoryManager().getRepository(
 					LocalRepositoryConnector.CONNECTOR_KIND, LocalRepositoryConnector.REPOSITORY_URL);
 			viewer.setSelection(new StructuredSelection(localRepository));
 		}
+
+		final IThemeManager themeManager = PlatformUI.getWorkbench().getThemeManager();
+
+		new GradientDrawer(themeManager, getViewer()) {
+			@Override
+			protected boolean shouldApplyGradient(org.eclipse.swt.widgets.Event event) {
+				return event.item.getData() instanceof Category;
+			}
+		};
 
 		viewer.addOpenListener(new IOpenListener() {
 
@@ -224,9 +264,10 @@ public abstract class SelectRepositoryPage extends WizardSelectionPage {
 			}
 		});
 
-		viewer.getTable().showSelection();
-		viewer.getTable().setFocus();
-		return viewer.getTable();
+		viewer.expandAll();
+		viewer.getTree().showSelection();
+		viewer.getTree().setFocus();
+		return viewer.getTree();
 	}
 
 	protected abstract IWizard createWizard(TaskRepository taskRepository);
@@ -308,7 +349,7 @@ public abstract class SelectRepositoryPage extends WizardSelectionPage {
 	/**
 	 * Public for testing.
 	 */
-	public TableViewer getViewer() {
+	public TreeViewer getViewer() {
 		return viewer;
 	}
 

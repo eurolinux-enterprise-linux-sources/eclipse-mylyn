@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -32,7 +32,13 @@ public class BugzillaVersion implements Comparable<BugzillaVersion>, Serializabl
 
 	public final static BugzillaVersion BUGZILLA_3_4 = new BugzillaVersion("3.4"); //$NON-NLS-1$
 
-	public final static BugzillaVersion MAX_VERSION = new BugzillaVersion("3.4"); //$NON-NLS-1$
+	public final static BugzillaVersion BUGZILLA_3_4_7 = new BugzillaVersion("3.4.7"); //$NON-NLS-1$
+
+	public final static BugzillaVersion BUGZILLA_3_5 = new BugzillaVersion("3.5"); //$NON-NLS-1$
+
+	public final static BugzillaVersion BUGZILLA_3_6 = new BugzillaVersion("3.6"); //$NON-NLS-1$
+
+	public final static BugzillaVersion MAX_VERSION = new BugzillaVersion("3.6"); //$NON-NLS-1$
 
 	private final int major;
 
@@ -42,13 +48,20 @@ public class BugzillaVersion implements Comparable<BugzillaVersion>, Serializabl
 
 	private final boolean rc;
 
+	private final boolean plus;
+
 	public BugzillaVersion(String version) {
 		String[] segments;
 		if (version == null) {
 			segments = new String[0];
 			rc = false;
+			plus = false;
 		} else {
 			rc = version.contains("RC"); //$NON-NLS-1$
+			plus = version.contains("+"); //$NON-NLS-1$
+			if (plus) {
+				version = version.replace("+", ""); //$NON-NLS-1$ //$NON-NLS-2$
+			}
 			segments = rc ? version.split("(\\.|([R][C]))") : version.split("\\."); //$NON-NLS-1$ //$NON-NLS-2$
 		}
 		major = segments.length > 0 ? parse(segments[0]) : 0;
@@ -76,6 +89,10 @@ public class BugzillaVersion implements Comparable<BugzillaVersion>, Serializabl
 		return compareTo(v) <= 0;
 	}
 
+	public boolean isSmaller(BugzillaVersion v) {
+		return compareTo(v) < 0;
+	}
+
 	public int compareTo(BugzillaVersion v) {
 		if (major < v.major) {
 			return -1;
@@ -93,6 +110,14 @@ public class BugzillaVersion implements Comparable<BugzillaVersion>, Serializabl
 			return -1;
 		} else if (micro > v.micro) {
 			return 1;
+		}
+
+		if (plus != v.plus) {
+			if (plus) {
+				return 1;
+			} else {
+				return -1;
+			}
 		}
 
 		return 0;
@@ -122,6 +147,9 @@ public class BugzillaVersion implements Comparable<BugzillaVersion>, Serializabl
 			sb.append(".").append(Integer.toString(micro)); //$NON-NLS-1$
 		} else if (micro < 0) {
 			sb.append("RC").append(Integer.toString(micro + 100)); //$NON-NLS-1$
+		}
+		if (plus) {
+			sb.append("+"); //$NON-NLS-1$
 		}
 		return sb.toString();
 	}

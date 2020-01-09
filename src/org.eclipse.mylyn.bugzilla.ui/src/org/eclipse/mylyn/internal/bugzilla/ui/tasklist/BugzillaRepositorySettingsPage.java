@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -22,6 +22,7 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
+import org.eclipse.jface.dialogs.IMessageProvider;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.mylyn.internal.bugzilla.core.BugzillaClient;
 import org.eclipse.mylyn.internal.bugzilla.core.BugzillaClientFactory;
@@ -31,6 +32,7 @@ import org.eclipse.mylyn.internal.bugzilla.core.BugzillaRepositoryConnector;
 import org.eclipse.mylyn.internal.bugzilla.core.BugzillaStatus;
 import org.eclipse.mylyn.internal.bugzilla.core.IBugzillaConstants;
 import org.eclipse.mylyn.internal.bugzilla.core.RepositoryConfiguration;
+import org.eclipse.mylyn.internal.tasks.core.IRepositoryConstants;
 import org.eclipse.mylyn.tasks.core.RepositoryStatus;
 import org.eclipse.mylyn.tasks.core.RepositoryTemplate;
 import org.eclipse.mylyn.tasks.core.TaskRepository;
@@ -58,7 +60,7 @@ public class BugzillaRepositorySettingsPage extends AbstractRepositorySettingsPa
 
 	private static final String LABEL_SHORT_LOGINS = Messages.BugzillaRepositorySettingsPage_local_users_enabled;
 
-	private static final String LABEL_VERSION_NUMBER = "3.0 - 3.4"; //$NON-NLS-1$
+	private static final String LABEL_VERSION_NUMBER = "3.0 - 3.6"; //$NON-NLS-1$
 
 	private static final String TITLE = Messages.BugzillaRepositorySettingsPage_bugzilla_repository_settings;
 
@@ -264,9 +266,11 @@ public class BugzillaRepositorySettingsPage extends AbstractRepositorySettingsPa
 		defaultPlatformCombo.setEnabled(!autodetectPlatformOS.getSelection());
 	}
 
+	@SuppressWarnings( { "restriction" })
 	@Override
 	public void applyTo(TaskRepository repository) {
 		super.applyTo(repository);
+		repository.setProperty(IRepositoryConstants.PROPERTY_CATEGORY, IRepositoryConstants.CATEGORY_BUGS);
 		repository.setProperty(IBugzillaConstants.REPOSITORY_SETTING_SHORT_LOGIN,
 				String.valueOf(cleanQAContact.getSelection()));
 		repository.setProperty(IBugzillaConstants.BUGZILLA_LANGUAGE_SETTING, languageSettingCombo.getText());
@@ -351,6 +355,12 @@ public class BugzillaRepositorySettingsPage extends AbstractRepositorySettingsPa
 	@Override
 	public String getConnectorKind() {
 		return BugzillaCorePlugin.CONNECTOR_KIND;
+	}
+
+	@Override
+	public boolean canValidate() {
+		// need to invoke isPageComplete() to trigger message update
+		return isPageComplete() && (getMessage() == null || getMessageType() != IMessageProvider.ERROR);
 	}
 
 }

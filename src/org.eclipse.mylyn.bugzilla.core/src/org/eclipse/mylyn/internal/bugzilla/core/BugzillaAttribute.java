@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -82,6 +82,8 @@ public enum BugzillaAttribute {
 			"dependson", TaskAttribute.TYPE_TASK_DEPENDENCY, false, false), //$NON-NLS-1$
 
 	DESC(Messages.BugzillaAttribute_desc, "desc", TaskAttribute.TYPE_LONG_TEXT, true, true), //$NON-NLS-1$
+
+	DUP_ID(Messages.BugzillaAttribute_Duplicate_of, "dup_id", TaskAttribute.TYPE_TASK_DEPENDENCY, false, false), //$NON-NLS-1$
 
 	EVERCONFIRMED(Messages.BugzillaAttribute_everconfirmed, "everconfirmed", TaskAttribute.TYPE_BOOLEAN, true, false), //$NON-NLS-1$
 
@@ -185,7 +187,10 @@ public enum BugzillaAttribute {
 
 	BUGS(Messages.BugzillaAttribute_used_by_search_engine_bugs, "bugs", null, false, false), //$NON-NLS-1$
 
-	QUERY_TIMESTAMP(Messages.BugzillaAttribute_Query_Timestamp, "query_timestamp", null, false, false); //$NON-NLS-1$
+	QUERY_TIMESTAMP(Messages.BugzillaAttribute_Query_Timestamp, "query_timestamp", null, false, false), //$NON-NLS-1$
+
+	// new in Bugzilla 3.6
+	ATTACHER(Messages.BugzillaAttribute_Attacher, "attacher", null, false, false); //$NON-NLS-1$
 
 	private final boolean isHidden;
 

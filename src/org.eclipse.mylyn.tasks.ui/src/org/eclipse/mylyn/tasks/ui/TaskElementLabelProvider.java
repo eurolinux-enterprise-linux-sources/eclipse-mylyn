@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -18,7 +18,6 @@ import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.viewers.IColorProvider;
 import org.eclipse.jface.viewers.IFontProvider;
 import org.eclipse.jface.viewers.LabelProvider;
-import org.eclipse.mylyn.internal.provisional.commons.ui.CommonColors;
 import org.eclipse.mylyn.internal.provisional.commons.ui.CommonFonts;
 import org.eclipse.mylyn.internal.provisional.commons.ui.CommonImages;
 import org.eclipse.mylyn.internal.provisional.commons.ui.CommonThemes;
@@ -33,7 +32,6 @@ import org.eclipse.mylyn.internal.tasks.core.UncategorizedTaskContainer;
 import org.eclipse.mylyn.internal.tasks.core.UnmatchedTaskContainer;
 import org.eclipse.mylyn.internal.tasks.core.UnsubmittedTaskContainer;
 import org.eclipse.mylyn.internal.tasks.core.WeekDateRange;
-import org.eclipse.mylyn.internal.tasks.ui.ITaskHighlighter;
 import org.eclipse.mylyn.internal.tasks.ui.ITasksUiPreferenceConstants;
 import org.eclipse.mylyn.internal.tasks.ui.Messages;
 import org.eclipse.mylyn.internal.tasks.ui.TasksUiPlugin;
@@ -133,7 +131,11 @@ public class TaskElementLabelProvider extends LabelProvider implements IColorPro
 				} else if (element instanceof ScheduledTaskContainer) {
 					ScheduledTaskContainer scheduledTaskContainer = (ScheduledTaskContainer) element;
 					if (scheduledTaskContainer.getDateRange() instanceof DayDateRange) {
-						compositeDescriptor.icon = CommonImages.SCHEDULE_DAY;
+						if (scheduledTaskContainer.isPresent()) {
+							compositeDescriptor.icon = CommonImages.SCHEDULE_DAY;
+						} else {
+							compositeDescriptor.icon = CommonImages.SCHEDULE;
+						}
 					} else if (scheduledTaskContainer.getDateRange() instanceof WeekDateRange) {
 						compositeDescriptor.icon = CommonImages.SCHEDULE_WEEK;
 					} else {
@@ -189,7 +191,7 @@ public class TaskElementLabelProvider extends LabelProvider implements IColorPro
 				} else if (task.isCompleted()) {
 					return themeManager.getCurrentTheme().getColorRegistry().get(CommonThemes.COLOR_COMPLETED);
 				} else if (TasksUi.getTaskActivityManager().isActive(task)) {
-					return CommonColors.CONTEXT_ACTIVE;
+					return themeManager.getCurrentTheme().getColorRegistry().get(CommonThemes.COLOR_TASK_ACTIVE);
 				} else if (TasksUiPlugin.getTaskActivityManager().isOverdue(task)) {
 					return themeManager.getCurrentTheme().getColorRegistry().get(CommonThemes.COLOR_OVERDUE);
 				} else if (TasksUiPlugin.getTaskActivityManager().isDueToday(task)) {
@@ -197,6 +199,8 @@ public class TaskElementLabelProvider extends LabelProvider implements IColorPro
 				} else if (task.getScheduledForDate() != null
 						&& TasksUiPlugin.getTaskActivityManager().isPastReminder(task)) {
 					return themeManager.getCurrentTheme().getColorRegistry().get(CommonThemes.COLOR_SCHEDULED_PAST);
+				} else if (TasksUiPlugin.getTaskActivityManager().isOverdueForOther(task)) {
+					return themeManager.getCurrentTheme().getColorRegistry().get(CommonThemes.COLOR_OVERDUE_FOR_OTHERS);
 				} else if (TasksUiPlugin.getTaskActivityManager().isScheduledForToday(task)) {
 					return themeManager.getCurrentTheme().getColorRegistry().get(CommonThemes.COLOR_SCHEDULED_TODAY);
 				} else if (TasksUiPlugin.getTaskActivityManager().isScheduledForThisWeek(task)) {
@@ -206,12 +210,16 @@ public class TaskElementLabelProvider extends LabelProvider implements IColorPro
 				}
 			}
 		} else if (object instanceof ITaskContainer) {
-			for (ITask child : ((ITaskContainer) object).getChildren()) {
-				if (child.isActive() || (child instanceof ITaskContainer && showHasActiveChild((ITaskContainer) child))) {
-					return CommonColors.CONTEXT_ACTIVE;
-				} else if (TasksUiPlugin.getTaskActivityManager().isOverdue(child)) {
-//				} else if ((child.isPastReminder() && !child.isCompleted()) || showHasChildrenPastDue(child)) {
-					return themeManager.getCurrentTheme().getColorRegistry().get(CommonThemes.COLOR_OVERDUE);
+			if (object instanceof ScheduledTaskContainer) {
+				return null;
+			} else {
+				for (ITask child : ((ITaskContainer) object).getChildren()) {
+					if (child.isActive()
+							|| (child instanceof ITaskContainer && showHasActiveChild((ITaskContainer) child))) {
+						return themeManager.getCurrentTheme().getColorRegistry().get(CommonThemes.COLOR_TASK_ACTIVE);
+					} else if (TasksUiPlugin.getTaskActivityManager().isOverdue(child)) {
+						return themeManager.getCurrentTheme().getColorRegistry().get(CommonThemes.COLOR_OVERDUE);
+					}
 				}
 			}
 		}
@@ -219,13 +227,6 @@ public class TaskElementLabelProvider extends LabelProvider implements IColorPro
 	}
 
 	public Color getBackground(Object element) {
-		if (element instanceof ITask) {
-			ITask task = (ITask) element;
-			ITaskHighlighter highlighter = TasksUiPlugin.getDefault().getHighlighter();
-			if (highlighter != null) {
-				return highlighter.getHighlightColor(task);
-			}
-		}
 		return null;
 	}
 
@@ -259,8 +260,9 @@ public class TaskElementLabelProvider extends LabelProvider implements IColorPro
 				return CommonFonts.BOLD;
 			} else if (((AbstractTask) element).isCompleted()) {
 				if (CommonFonts.HAS_STRIKETHROUGH
-						&& TasksUiPlugin.getDefault().getPluginPreferences().getBoolean(
-								ITasksUiPreferenceConstants.USE_STRIKETHROUGH_FOR_COMPLETED)) {
+						&& TasksUiPlugin.getDefault()
+								.getPluginPreferences()
+								.getBoolean(ITasksUiPreferenceConstants.USE_STRIKETHROUGH_FOR_COMPLETED)) {
 					return CommonFonts.STRIKETHROUGH;
 				} else {
 					return null;

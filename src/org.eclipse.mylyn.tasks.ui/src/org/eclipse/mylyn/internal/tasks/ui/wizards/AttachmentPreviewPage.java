@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Jeff Pound and others.
+ * Copyright (c) 2004, 2010 Jeff Pound and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -183,7 +183,7 @@ public class AttachmentPreviewPage extends WizardPage {
 	private void createGenericPreview(Composite composite) {
 		Label label = new Label(composite, SWT.NONE);
 		label.setLayoutData(new GridData(GridData.FILL_BOTH));
-		// TODO 3.4 put filename on model
+		// TODO 3.5 put filename on model
 		String name = model.getSource().getName();
 		TaskAttachmentMapper taskAttachment = TaskAttachmentMapper.createFrom(model.getAttribute());
 		if (taskAttachment.getFileName() != null) {

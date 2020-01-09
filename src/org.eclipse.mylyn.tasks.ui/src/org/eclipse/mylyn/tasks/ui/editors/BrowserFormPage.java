@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2008 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -24,7 +24,6 @@ import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.IEditorSite;
 import org.eclipse.ui.forms.IManagedForm;
 import org.eclipse.ui.forms.editor.FormEditor;
-import org.eclipse.ui.forms.editor.FormPage;
 import org.eclipse.ui.forms.widgets.ScrolledForm;
 import org.eclipse.ui.internal.browser.BrowserViewer;
 import org.eclipse.ui.internal.browser.IBrowserViewerContainer;
@@ -36,7 +35,7 @@ import org.eclipse.ui.internal.browser.IBrowserViewerContainer;
  * @author Mik Kersten
  * @author Steffen Pingel
  */
-public class BrowserFormPage extends FormPage {
+public class BrowserFormPage extends TaskFormPage {
 
 	public static final String ID_EDITOR = "org.eclipse.mylyn.tasks.ui.editor.browser"; //$NON-NLS-1$
 
@@ -113,6 +112,11 @@ public class BrowserFormPage extends FormPage {
 		if (input instanceof TaskEditorInput) {
 			TasksUiPlugin.getTaskDataManager().setTaskRead(((TaskEditorInput) input).getTask(), true);
 		}
+	}
+
+	@Override
+	protected void refresh() {
+		init(getEditorSite(), getEditorInput());
 	}
 
 }

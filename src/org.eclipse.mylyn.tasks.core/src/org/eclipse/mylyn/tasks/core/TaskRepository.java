@@ -245,22 +245,22 @@ public final class TaskRepository extends PlatformObject {
 	}
 
 	private void addAuthInfo(String username, String password, String userProperty, String passwordProperty) {
-		synchronized (LOCK) {
-			if (Platform.isRunning()) {
-				if (useSecureStorage()) {
-					try {
-						ISecurePreferences securePreferences = getSecurePreferences();
-						if (userProperty.equals(getKeyPrefix(AuthenticationType.REPOSITORY) + USERNAME)) {
-							this.setProperty(userProperty, username);
-						} else {
-							securePreferences.put(userProperty, username, false);
-						}
-						securePreferences.put(passwordProperty, password, true);
-					} catch (StorageException e) {
-						StatusHandler.log(new Status(IStatus.ERROR, ITasksCoreConstants.ID_PLUGIN,
-								"Could not store authorization credentials", e)); //$NON-NLS-1$
+		if (Platform.isRunning()) {
+			if (useSecureStorage()) {
+				try {
+					ISecurePreferences securePreferences = getSecurePreferences();
+					if (userProperty.equals(getKeyPrefix(AuthenticationType.REPOSITORY) + USERNAME)) {
+						this.setProperty(userProperty, username);
+					} else {
+						securePreferences.put(userProperty, username, false);
 					}
-				} else {
+					securePreferences.put(passwordProperty, password, true);
+				} catch (StorageException e) {
+					StatusHandler.log(new Status(IStatus.ERROR, ITasksCoreConstants.ID_PLUGIN,
+							"Could not store authorization credentials", e)); //$NON-NLS-1$
+				}
+			} else {
+				synchronized (LOCK) {
 					Map<String, String> map = getAuthInfo();
 					if (map == null) {
 						map = new HashMap<String, String>();
@@ -278,7 +278,9 @@ public final class TaskRepository extends PlatformObject {
 								"Could not set authorization credentials", e)); //$NON-NLS-1$
 					}
 				}
-			} else {
+			}
+		} else {
+			synchronized (LOCK) {
 				Map<String, String> headlessCreds = credentials.get(getRepositoryUrl());
 				if (headlessCreds == null) {
 					headlessCreds = new HashMap<String, String>();
@@ -290,7 +292,7 @@ public final class TaskRepository extends PlatformObject {
 		}
 	}
 
-	@SuppressWarnings({ "unchecked" })
+	@SuppressWarnings( { "unchecked" })
 	private Map<String, String> getAuthInfo() {
 		synchronized (LOCK) {
 			if (Platform.isRunning()) {
@@ -367,7 +369,7 @@ public final class TaskRepository extends PlatformObject {
 						}
 					} catch (CoreException e) {
 						// FIXME propagate exception?
-						StatusHandler.fail(new Status(IStatus.ERROR, ITasksCoreConstants.ID_PLUGIN,
+						StatusHandler.log(new Status(IStatus.ERROR, ITasksCoreConstants.ID_PLUGIN,
 								"Could not flush authorization credentials", e)); //$NON-NLS-1$
 					}
 				}
@@ -390,26 +392,23 @@ public final class TaskRepository extends PlatformObject {
 
 	@SuppressWarnings("unchecked")
 	private String getAuthInfo(String property) {
-		synchronized (LOCK) {
-			if (Platform.isRunning()) {
-				if (useSecureStorage()) {
-					String propertyValue = null;
-					if (property.equals(getKeyPrefix(AuthenticationType.REPOSITORY) + USERNAME)) {
-						propertyValue = this.getProperty(property);
-					} else {
-						try {
-							ISecurePreferences securePreferences = getSecurePreferences();
-							propertyValue = securePreferences.get(property, null);
-						} catch (StorageException e) {
-							StatusHandler.log(new Status(IStatus.ERROR, ITasksCoreConstants.ID_PLUGIN,
-									"Could not retrieve authorization credentials", e)); //$NON-NLS-1$
-						}
-						if (propertyValue == null) {
-							propertyValue = getFromLegacyKeystore(property);
-						}
-					}
-					return propertyValue;
+		if (Platform.isRunning()) {
+			if (useSecureStorage()) {
+				String propertyValue = null;
+				if (property.equals(getKeyPrefix(AuthenticationType.REPOSITORY) + USERNAME)) {
+					propertyValue = this.getProperty(property);
 				} else {
+					try {
+						ISecurePreferences securePreferences = getSecurePreferences();
+						propertyValue = securePreferences.get(property, null);
+					} catch (StorageException e) {
+						StatusHandler.log(new Status(IStatus.ERROR, ITasksCoreConstants.ID_PLUGIN,
+								"Could not retrieve authorization credentials", e)); //$NON-NLS-1$
+					}
+				}
+				return propertyValue;
+			} else {
+				synchronized (LOCK) {
 					try {
 						Map<String, String> map = Platform.getAuthorizationInfo(new URL(getRepositoryUrl()),
 								AUTH_REALM, AUTH_SCHEME);
@@ -430,7 +429,9 @@ public final class TaskRepository extends PlatformObject {
 					}
 					return null;
 				}
-			} else {
+			}
+		} else {
+			synchronized (LOCK) {
 				Map<String, String> headlessCreds = credentials.get(getRepositoryUrl());
 				if (headlessCreds == null) {
 					headlessCreds = new HashMap<String, String>();
@@ -439,28 +440,6 @@ public final class TaskRepository extends PlatformObject {
 				return headlessCreds.get(property);
 			}
 		}
-	}
-
-	@SuppressWarnings("unchecked")
-	private String getFromLegacyKeystore(String property) {
-		String propertyValue = null;
-		try {
-			Map<String, String> map = Platform.getAuthorizationInfo(new URL(getRepositoryUrl()), AUTH_REALM,
-					AUTH_SCHEME);
-			if (map != null) {
-				propertyValue = map.get(property);
-				if (propertyValue != null) {
-					ISecurePreferences securePreferences = getSecurePreferences();
-					securePreferences.put(property, propertyValue, property.endsWith(PASSWORD));
-					map.remove(property);
-				}
-			}
-		} catch (Exception e) {
-			StatusHandler.log(new Status(IStatus.ERROR, ITasksCoreConstants.ID_PLUGIN,
-					"Could not retrieve authorization credentials", e)); //$NON-NLS-1$
-		}
-		return propertyValue;
-
 	}
 
 	public String getCharacterEncoding() {
@@ -640,7 +619,12 @@ public final class TaskRepository extends PlatformObject {
 	public String getUserName() {
 		// NOTE: if anonymous, user name is "" string so we won't go to keyring
 		if (!isCachedUserName) {
-			cachedUserName = getUserName(AuthenticationType.REPOSITORY);
+			if (useSecureStorage()) {
+				// do not open secure store for username to avoid prompting user for password during initialization 
+				cachedUserName = getProperty(getKeyPrefix(AuthenticationType.REPOSITORY) + USERNAME);
+			} else {
+				cachedUserName = getUserName(AuthenticationType.REPOSITORY);
+			}
 			isCachedUserName = true;
 		}
 		return cachedUserName;
@@ -824,9 +808,10 @@ public final class TaskRepository extends PlatformObject {
 	}
 
 	public void setProperty(String key, String newValue) {
+		Assert.isLegal(!key.matches(".*\\s.*")); //$NON-NLS-1$
 		String oldValue = this.properties.get(key);
 		if ((oldValue != null && !oldValue.equals(newValue)) || (oldValue == null && newValue != null)) {
-			this.properties.put(key, newValue);
+			this.properties.put(key.intern(), (newValue != null) ? newValue.intern() : null);
 			notifyChangeListeners(key, oldValue, newValue);
 		}
 	}
@@ -856,7 +841,7 @@ public final class TaskRepository extends PlatformObject {
 	 */
 	public void setRepositoryUrl(String repositoryUrl) {
 		Assert.isNotNull(repositoryUrl);
-		properties.put(IRepositoryConstants.PROPERTY_URL, repositoryUrl);
+		properties.put(IRepositoryConstants.PROPERTY_URL, repositoryUrl.intern());
 	}
 
 	public void setVersion(String ver) {

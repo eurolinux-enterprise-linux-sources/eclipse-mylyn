@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2008 Eugene Kuleshov and others.
+ * Copyright (c) 2004, 2010 Eugene Kuleshov and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -50,6 +50,12 @@ public interface ITaskRepositoryFilter {
 	public static ITaskRepositoryFilter IS_USER_MANAGED = new ITaskRepositoryFilter() {
 		public boolean accept(TaskRepository repository, AbstractRepositoryConnector connector) {
 			return connector.isUserManaged();
+		}
+	};
+
+	public static ITaskRepositoryFilter CAN_CREATE_REPOSITORY = new ITaskRepositoryFilter() {
+		public boolean accept(TaskRepository repository, AbstractRepositoryConnector connector) {
+			return connector.canCreateRepository();
 		}
 	};
 

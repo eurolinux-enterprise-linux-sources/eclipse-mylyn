@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Frank Becker and others.
+ * Copyright (c) 2004, 2010 Frank Becker and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -40,7 +40,7 @@ public class NewTaskFromSelectionActionTest extends TestCase {
 //	}
 
 	public void testComment() throws Exception {
-		TaskRepository taskRepository = new TaskRepository(MockRepositoryConnector.REPOSITORY_KIND,
+		TaskRepository taskRepository = new TaskRepository(MockRepositoryConnector.CONNECTOR_KIND,
 				MockRepositoryConnector.REPOSITORY_URL);
 		TaskData taskData = new TaskData(new TaskAttributeMapper(taskRepository), "kind", "http://url", "1");
 		TaskComment comment = new TaskComment(taskRepository, new MockTask("1"), taskData.getRoot().createAttribute(

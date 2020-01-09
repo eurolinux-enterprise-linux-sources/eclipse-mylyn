@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2009 David Green and others.
+ * Copyright (c) 2007, 2010 David Green and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -17,6 +17,7 @@ import java.util.List;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jface.preference.IPreferenceStore;
+import org.eclipse.jface.resource.FontRegistry;
 import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.jface.text.DefaultTextHover;
 import org.eclipse.jface.text.IDocument;
@@ -29,6 +30,7 @@ import org.eclipse.jface.text.Region;
 import org.eclipse.jface.text.contentassist.ContentAssistant;
 import org.eclipse.jface.text.contentassist.IContentAssistProcessor;
 import org.eclipse.jface.text.contentassist.IContentAssistant;
+import org.eclipse.jface.text.hyperlink.IHyperlinkDetector;
 import org.eclipse.jface.text.information.IInformationPresenter;
 import org.eclipse.jface.text.information.IInformationProvider;
 import org.eclipse.jface.text.information.IInformationProviderExtension;
@@ -41,6 +43,7 @@ import org.eclipse.jface.text.reconciler.IReconcilingStrategy;
 import org.eclipse.jface.text.reconciler.MonoReconciler;
 import org.eclipse.jface.text.rules.ITokenScanner;
 import org.eclipse.jface.text.source.ISourceViewer;
+import org.eclipse.mylyn.internal.wikitext.ui.WikiTextUiPlugin;
 import org.eclipse.mylyn.internal.wikitext.ui.editor.assist.AnchorCompletionProcessor;
 import org.eclipse.mylyn.internal.wikitext.ui.editor.assist.MarkupTemplateCompletionProcessor;
 import org.eclipse.mylyn.internal.wikitext.ui.editor.assist.MultiplexingContentAssistProcessor;
@@ -50,26 +53,29 @@ import org.eclipse.mylyn.internal.wikitext.ui.editor.reconciler.MarkupValidation
 import org.eclipse.mylyn.internal.wikitext.ui.editor.reconciler.MultiReconcilingStrategy;
 import org.eclipse.mylyn.internal.wikitext.ui.editor.syntax.FastMarkupPartitioner;
 import org.eclipse.mylyn.internal.wikitext.ui.editor.syntax.MarkupDamagerRepairer;
+import org.eclipse.mylyn.internal.wikitext.ui.editor.syntax.MarkupHyperlinkDetector;
 import org.eclipse.mylyn.internal.wikitext.ui.editor.syntax.MarkupTokenScanner;
+import org.eclipse.mylyn.internal.wikitext.ui.util.WikiTextUiResources;
 import org.eclipse.mylyn.wikitext.core.parser.markup.MarkupLanguage;
 import org.eclipse.mylyn.wikitext.core.parser.outline.OutlineItem;
 import org.eclipse.mylyn.wikitext.core.parser.outline.OutlineParser;
 import org.eclipse.mylyn.wikitext.ui.viewer.AbstractTextSourceViewerConfiguration;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.part.IShowInTarget;
 import org.eclipse.ui.texteditor.HippieProposalProcessor;
+import org.eclipse.ui.themes.IThemeManager;
 
 /**
  * A source viewer configuration suitable for installing on a markup editor
  * 
  * @author David Green
- * 
  * @since 1.1
  */
 public class MarkupSourceViewerConfiguration extends AbstractTextSourceViewerConfiguration {
 
-	private ITokenScanner scanner;
+	private MarkupTokenScanner scanner;
 
 	private MarkupTemplateCompletionProcessor completionProcessor;
 
@@ -93,9 +99,117 @@ public class MarkupSourceViewerConfiguration extends AbstractTextSourceViewerCon
 
 	private IShowInTarget showInTarget;
 
-	public MarkupSourceViewerConfiguration(IPreferenceStore preferenceStore) {
+	private String fontPreference;
+
+	private String monospaceFontPreference;
+
+	private MarkupHyperlinkDetector markupHyperlinkDetector;
+
+	/**
+	 * @since 1.3
+	 * @param preferenceStore
+	 * @param fontPreference
+	 *            the preference key of the text font
+	 * @param monospaceFontPreference
+	 *            the preference key of the monospace text font
+	 * @see #initializeDefaultFonts()
+	 */
+	public MarkupSourceViewerConfiguration(IPreferenceStore preferenceStore, String textFontPreference,
+			String monospaceFontPreference) {
 		super(preferenceStore);
-		defaultFont = JFaceResources.getDefaultFont();
+		this.fontPreference = textFontPreference;
+		this.monospaceFontPreference = monospaceFontPreference;
+		initializeDefaultFonts();
+	}
+
+	/**
+	 * Initialize with the default font preference keys
+	 */
+	public MarkupSourceViewerConfiguration(IPreferenceStore preferenceStore) {
+		this(preferenceStore, WikiTextUiResources.PREFERENCE_TEXT_FONT, WikiTextUiResources.PREFERENCE_MONOSPACE_FONT);
+	}
+
+	@Override
+	protected List<IHyperlinkDetector> createCustomHyperlinkDetectors(ISourceViewer sourceViewer) {
+		List<IHyperlinkDetector> detectors = new ArrayList<IHyperlinkDetector>();
+		if (markupHyperlinkDetector == null) {
+			markupHyperlinkDetector = new MarkupHyperlinkDetector();
+			markupHyperlinkDetector.setMarkupLanguage(markupLanguage);
+			markupHyperlinkDetector.setFile(file);
+		}
+		detectors.add(markupHyperlinkDetector);
+		detectors.addAll(super.createCustomHyperlinkDetectors(sourceViewer));
+		return detectors;
+	}
+
+	/**
+	 * Initialize default fonts. Causes this to re-read font preferences from the preference store. Calling this method
+	 * should only be necessary if font preferences have changed, or if the font preference keys have changed.
+	 * 
+	 * @since 1.3
+	 * @see #getFontPreference()
+	 * @see #getMonospaceFontPreference()
+	 */
+	public void initializeDefaultFonts() {
+		Font defaultFont = null;
+		Font defaultMonospaceFont = null;
+		if (WikiTextUiPlugin.getDefault() != null) {
+			IThemeManager themeManager = PlatformUI.getWorkbench().getThemeManager();
+			FontRegistry fontRegistry = themeManager.getCurrentTheme().getFontRegistry();
+			defaultFont = fontRegistry.get(fontPreference);
+			defaultMonospaceFont = fontRegistry.get(monospaceFontPreference);
+		}
+		if (defaultFont == null) {
+			// could be the case when running stand-alone
+			defaultFont = JFaceResources.getDefaultFont();
+		}
+		if (this.defaultFont != defaultFont || this.defaultMonospaceFont != defaultMonospaceFont) {
+			this.defaultFont = defaultFont;
+			this.defaultMonospaceFont = defaultMonospaceFont;
+			if (scanner != null) {
+				scanner.resetFonts(defaultFont, defaultMonospaceFont);
+			}
+		}
+	}
+
+	/**
+	 * the font preference key for the text font
+	 * 
+	 * @see #initializeDefaultFonts()
+	 * @since 1.3
+	 */
+	public String getFontPreference() {
+		return fontPreference;
+	}
+
+	/**
+	 * the font preference key for the text font
+	 * 
+	 * @see #initializeDefaultFonts()
+	 * @since 1.3
+	 */
+	public void setFontPreference(String textFontPreference) {
+		this.fontPreference = textFontPreference;
+	}
+
+	/**
+	 * the monospace font preference key for the text font
+	 * 
+	 * @see #initializeDefaultFonts()
+	 * @since 1.3
+	 */
+	public String getMonospaceFontPreference() {
+		return monospaceFontPreference;
+	}
+
+	/**
+	 * the monospace font preference key for the text font
+	 * 
+	 * @see #initializeDefaultFonts()
+	 * @since 1.3
+	 */
+	public void setMonospaceFontPreference(String monospaceFontPreference) {
+		this.monospaceFontPreference = monospaceFontPreference;
 	}
 
 	/**
@@ -187,6 +301,9 @@ public class MarkupSourceViewerConfiguration extends AbstractTextSourceViewerCon
 		if (markupValidationReconcilingStrategy != null) {
 			markupValidationReconcilingStrategy.setMarkupLanguage(markupLanguage);
 		}
+		if (markupHyperlinkDetector != null) {
+			markupHyperlinkDetector.setMarkupLanguage(markupLanguage);
+		}
 	}
 
 	@Override
@@ -238,6 +355,9 @@ public class MarkupSourceViewerConfiguration extends AbstractTextSourceViewerCon
 		if (markupValidationReconcilingStrategy != null) {
 			markupValidationReconcilingStrategy.setResource(file);
 		}
+		if (markupHyperlinkDetector != null) {
+			markupHyperlinkDetector.setFile(file);
+		}
 	}
 
 	@Override
@@ -249,9 +369,8 @@ public class MarkupSourceViewerConfiguration extends AbstractTextSourceViewerCon
 	}
 
 	/**
-	 * provide access to an information presenter that can be used to pop-up a quick outline.
-	 * 
-	 * Source viewers should configure as follows:
+	 * provide access to an information presenter that can be used to pop-up a quick outline. Source viewers should
+	 * configure as follows:
 	 * 
 	 * <pre>
 	 * public void configure(SourceViewerConfiguration configuration) {
@@ -265,7 +384,6 @@ public class MarkupSourceViewerConfiguration extends AbstractTextSourceViewerCon
 	 * 
 	 * @param sourceViewer
 	 *            the source viewer for which the presenter should be created
-	 * 
 	 * @return the presenter
 	 */
 	public IInformationPresenter getOutlineInformationPresenter(ISourceViewer sourceViewer) {
@@ -326,10 +444,19 @@ public class MarkupSourceViewerConfiguration extends AbstractTextSourceViewerCon
 	}
 
 	/**
-	 * the default font, as used by the {@link #getMarkupScanner() scanner}.
+	 * The default font, as used by the {@link #getMarkupScanner() scanner}. Note that if a preference store is used
+	 * then {@link #setFontPreference(String)} should be used instead.
 	 */
 	public void setDefaultFont(Font defaultFont) {
-		this.defaultFont = defaultFont;
+		if (defaultFont == null) {
+			throw new IllegalArgumentException();
+		}
+		if (defaultFont != this.defaultFont) {
+			this.defaultFont = defaultFont;
+			if (scanner != null) {
+				scanner.resetFonts(defaultFont, defaultMonospaceFont);
+			}
+		}
 	}
 
 	/**
@@ -340,10 +467,16 @@ public class MarkupSourceViewerConfiguration extends AbstractTextSourceViewerCon
 	}
 
 	/**
-	 * the default font for monospace text, as used by the {@link #getMarkupScanner() scanner}.
+	 * the default font for monospace text, as used by the {@link #getMarkupScanner() scanner}. Note that if a
+	 * preference store is used then {@link #setMonospaceFontPreference(String)} should be used instead.
 	 */
 	public void setDefaultMonospaceFont(Font defaultMonospaceFont) {
-		this.defaultMonospaceFont = defaultMonospaceFont;
+		if (this.defaultMonospaceFont != defaultMonospaceFont) {
+			this.defaultMonospaceFont = defaultMonospaceFont;
+			if (scanner != null) {
+				scanner.resetFonts(defaultFont, defaultMonospaceFont);
+			}
+		}
 	}
 
 	/**

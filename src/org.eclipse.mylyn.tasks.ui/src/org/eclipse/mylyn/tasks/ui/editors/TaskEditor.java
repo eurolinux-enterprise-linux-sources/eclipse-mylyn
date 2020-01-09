@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -182,6 +182,8 @@ public class TaskEditor extends SharedHeaderFormEditor {
 	private CommonTextSupport textSupport;
 
 	private TaskEditorScheduleAction scheduleAction;
+
+	Action openWithBrowserAction;
 
 	private static boolean toolBarFailureLogged;
 
@@ -493,8 +495,13 @@ public class TaskEditor extends SharedHeaderFormEditor {
 		if (activateAction != null) {
 			activateAction.dispose();
 		}
-		if (menuService != null && toolBarManager instanceof ContributionManager) {
-			menuService.releaseContributions((ContributionManager) toolBarManager);
+		if (menuService != null) {
+			if (leftToolBarManager != null) {
+				menuService.releaseContributions(leftToolBarManager);
+			}
+			if (toolBarManager instanceof ContributionManager) {
+				menuService.releaseContributions((ContributionManager) toolBarManager);
+			}
 		}
 		if (textSupport != null) {
 			textSupport.dispose();
@@ -659,17 +666,16 @@ public class TaskEditor extends SharedHeaderFormEditor {
 	}
 
 	/**
-	 * Refresh editor with new contents (if any)
+	 * Refresh editor pages with new contents.
 	 * 
 	 * @since 3.0
 	 */
 	public void refreshPages() {
 		for (IFormPage page : getPages()) {
-			if (page instanceof AbstractTaskEditorPage) {
-				((AbstractTaskEditorPage) page).refreshFormContent();
-			} else if (page instanceof BrowserFormPage) {
-				// XXX 3.4 replace by invocation of refreshFromContent();
-				((BrowserFormPage) page).init(getEditorSite(), getEditorInput());
+			if (page instanceof TaskFormPage) {
+				if (page.getManagedForm() != null && !page.getManagedForm().getForm().isDisposed()) {
+					((TaskFormPage) page).refresh();
+				}
 			}
 		}
 	}
@@ -904,6 +910,7 @@ public class TaskEditor extends SharedHeaderFormEditor {
 				link.setText(label);
 				link.setFont(JFaceResources.getBannerFont());
 				link.setForeground(toolkit.getColors().getColor(IFormColors.TITLE));
+				link.setToolTipText(Messages.TaskEditor_Edit_Task_Repository_ToolTip);
 				link.addHyperlinkListener(new HyperlinkAdapter() {
 					@Override
 					public void linkActivated(HyperlinkEvent e) {
@@ -921,12 +928,12 @@ public class TaskEditor extends SharedHeaderFormEditor {
 		toolBarManager.add(new GroupMarker("open")); //$NON-NLS-1$
 		toolBarManager.add(new GroupMarker(IWorkbenchActionConstants.MB_ADDITIONS));
 
-		final String taskUrl = task.getUrl();
+		final String taskUrl = TasksUiInternal.getAuthenticatedUrl(taskRepository, task);
 		if (taskUrl != null && taskUrl.length() > 0) {
-			Action openWithBrowserAction = new Action() {
+			openWithBrowserAction = new Action() {
 				@Override
 				public void run() {
-					TasksUiUtil.openUrl(taskUrl);
+					TasksUiUtil.openWithBrowser(taskRepository, task);
 				}
 			};
 //			ImageDescriptor overlay = TasksUiPlugin.getDefault().getOverlayIcon(taskRepository.getConnectorKind());
@@ -1005,6 +1012,8 @@ public class TaskEditor extends SharedHeaderFormEditor {
 		if (menuService != null && toolBarManager instanceof ContributionManager) {
 			menuService.populateContributionManager((ContributionManager) toolBarManager, "toolbar:" //$NON-NLS-1$
 					+ ID_TOOLBAR_HEADER + "." + taskRepository.getConnectorKind()); //$NON-NLS-1$
+			menuService.populateContributionManager((ContributionManager) toolBarManager, "toolbar:" //$NON-NLS-1$
+					+ ID_TOOLBAR_HEADER);
 		}
 
 		toolBarManager.update(true);

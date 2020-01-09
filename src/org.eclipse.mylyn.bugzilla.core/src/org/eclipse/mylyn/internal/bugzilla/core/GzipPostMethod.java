@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Maarten Meijer and others.
+ * Copyright (c) 2004, 2010 Maarten Meijer and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -12,6 +12,7 @@
 package org.eclipse.mylyn.internal.bugzilla.core;
 
 import java.io.IOException;
+import java.io.InputStream;
 
 import org.apache.commons.httpclient.HttpConnection;
 import org.apache.commons.httpclient.HttpException;
@@ -29,7 +30,6 @@ import org.apache.commons.httpclient.methods.PostMethod;
  * </ul>
  * 
  * @see GzipGetMethod, PostMethod
- * 
  * @author Maarten Meijer
  */
 public class GzipPostMethod extends PostMethod {
@@ -61,9 +61,21 @@ public class GzipPostMethod extends PostMethod {
 	 * to unzip it first.
 	 * 
 	 * @throws IOException
+	 * @deprecated this is handled in {@link org.apache.commons.httpclient.HttpClient} connection release
 	 */
+
+	@Deprecated
 	public void getResponseBodyNoop() throws IOException {
-		// result is ignored
-		super.getResponseBody();
+		InputStream instream;
+		try {
+			instream = getResponseBodyAsStream();
+			if (instream != null) {
+				byte[] buffer = new byte[4096];
+				while (instream.read(buffer) > 0) {
+				}
+			}
+		} catch (IOException e) {
+			// ignore
+		}
 	}
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -650,9 +650,14 @@ public class TaskList implements ITaskList, ITransferList {
 	}
 
 	public void run(ITaskListRunnable runnable, IProgressMonitor monitor) throws CoreException {
+		run(runnable, monitor, false);
+	}
+
+	public void run(ITaskListRunnable runnable, IProgressMonitor monitor, boolean ignoreInterrupts)
+			throws CoreException {
 		monitor = Policy.monitorFor(monitor);
 		try {
-			lock(monitor);
+			lock(monitor, ignoreInterrupts);
 
 			runnable.execute(monitor);
 
@@ -668,17 +673,23 @@ public class TaskList implements ITaskList, ITransferList {
 		}
 	}
 
-	private void lock(IProgressMonitor monitor) throws CoreException {
+	private void lock(IProgressMonitor monitor, boolean ignoreInterrupts) throws CoreException {
 		while (!monitor.isCanceled()) {
 			try {
 				if (lock.acquire(3000)) {
 					if (lock.getDepth() == 1) {
 						delta = new HashSet<TaskContainerDelta>();
 					}
+					// success
 					return;
 				}
 			} catch (InterruptedException e) {
-				throw new OperationCanceledException();
+				if (ignoreInterrupts) {
+					// clear interrupted status to retry lock.aquire() 
+					Thread.interrupted();
+				} else {
+					break;
+				}
 			}
 		}
 		throw new OperationCanceledException();

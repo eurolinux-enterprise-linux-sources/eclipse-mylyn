@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -24,13 +24,18 @@ import java.util.Set;
 
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.jface.action.ActionContributionItem;
 import org.eclipse.jface.action.GroupMarker;
+import org.eclipse.jface.action.IAction;
+import org.eclipse.jface.action.IContributionItem;
 import org.eclipse.jface.action.IMenuListener;
 import org.eclipse.jface.action.IMenuManager;
 import org.eclipse.jface.action.IStatusLineManager;
 import org.eclipse.jface.action.IToolBarManager;
 import org.eclipse.jface.action.MenuManager;
 import org.eclipse.jface.action.Separator;
+import org.eclipse.jface.action.ToolBarManager;
+import org.eclipse.jface.dialogs.Dialog;
 import org.eclipse.jface.layout.TreeColumnLayout;
 import org.eclipse.jface.util.IPropertyChangeListener;
 import org.eclipse.jface.util.LocalSelectionTransfer;
@@ -63,6 +68,7 @@ import org.eclipse.mylyn.internal.tasks.core.AbstractTaskContainer;
 import org.eclipse.mylyn.internal.tasks.core.ITaskListChangeListener;
 import org.eclipse.mylyn.internal.tasks.core.ITasksCoreConstants;
 import org.eclipse.mylyn.internal.tasks.core.TaskContainerDelta;
+import org.eclipse.mylyn.internal.tasks.core.notifications.ServiceMessage;
 import org.eclipse.mylyn.internal.tasks.ui.AbstractTaskListFilter;
 import org.eclipse.mylyn.internal.tasks.ui.CategorizedPresentation;
 import org.eclipse.mylyn.internal.tasks.ui.ITasksUiPreferenceConstants;
@@ -70,6 +76,7 @@ import org.eclipse.mylyn.internal.tasks.ui.ScheduledPresentation;
 import org.eclipse.mylyn.internal.tasks.ui.TaskArchiveFilter;
 import org.eclipse.mylyn.internal.tasks.ui.TaskCompletionFilter;
 import org.eclipse.mylyn.internal.tasks.ui.TaskPriorityFilter;
+import org.eclipse.mylyn.internal.tasks.ui.TaskRepositoryUtil;
 import org.eclipse.mylyn.internal.tasks.ui.TaskWorkingSetFilter;
 import org.eclipse.mylyn.internal.tasks.ui.TasksUiPlugin;
 import org.eclipse.mylyn.internal.tasks.ui.actions.CollapseAllAction;
@@ -85,21 +92,23 @@ import org.eclipse.mylyn.internal.tasks.ui.actions.SynchronizeAutomaticallyActio
 import org.eclipse.mylyn.internal.tasks.ui.actions.TaskListSortAction;
 import org.eclipse.mylyn.internal.tasks.ui.actions.TaskListViewActionGroup;
 import org.eclipse.mylyn.internal.tasks.ui.editors.TaskListChangeAdapter;
+import org.eclipse.mylyn.internal.tasks.ui.notifications.TaskListServiceMessageControl;
 import org.eclipse.mylyn.internal.tasks.ui.util.PlatformUtil;
 import org.eclipse.mylyn.internal.tasks.ui.util.SortCriterion;
+import org.eclipse.mylyn.internal.tasks.ui.util.SortCriterion.SortKey;
 import org.eclipse.mylyn.internal.tasks.ui.util.TaskDragSourceListener;
 import org.eclipse.mylyn.internal.tasks.ui.util.TasksUiInternal;
 import org.eclipse.mylyn.internal.tasks.ui.util.TreeWalker;
-import org.eclipse.mylyn.internal.tasks.ui.util.SortCriterion.SortKey;
 import org.eclipse.mylyn.internal.tasks.ui.util.TreeWalker.TreeVisitor;
 import org.eclipse.mylyn.tasks.core.IRepositoryElement;
 import org.eclipse.mylyn.tasks.core.ITask;
+import org.eclipse.mylyn.tasks.core.ITask.PriorityLevel;
 import org.eclipse.mylyn.tasks.core.ITaskActivationListener;
 import org.eclipse.mylyn.tasks.core.ITaskActivityListener;
 import org.eclipse.mylyn.tasks.core.ITaskContainer;
 import org.eclipse.mylyn.tasks.core.TaskActivationAdapter;
 import org.eclipse.mylyn.tasks.core.TaskActivityAdapter;
-import org.eclipse.mylyn.tasks.core.ITask.PriorityLevel;
+import org.eclipse.mylyn.tasks.core.TaskRepository;
 import org.eclipse.mylyn.tasks.ui.ITasksUiConstants;
 import org.eclipse.mylyn.tasks.ui.TaskElementLabelProvider;
 import org.eclipse.mylyn.tasks.ui.TasksUi;
@@ -127,18 +136,12 @@ import org.eclipse.swt.events.MouseListener;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.graphics.Color;
-import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
-import org.eclipse.swt.graphics.Region;
+import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.Display;
-import org.eclipse.swt.widgets.Event;
-import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
-import org.eclipse.swt.widgets.Scrollable;
-import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeColumn;
@@ -149,6 +152,7 @@ import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.IMemento;
 import org.eclipse.ui.IPageListener;
 import org.eclipse.ui.IPartListener;
+import org.eclipse.ui.ISizeProvider;
 import org.eclipse.ui.IViewPart;
 import org.eclipse.ui.IViewReference;
 import org.eclipse.ui.IViewSite;
@@ -278,6 +282,8 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 
 	private static final String ID_SEPARATOR_FILTERS = "filters"; //$NON-NLS-1$
 
+	private static final String ID_SEPARATOR_SEARCH = "search"; //$NON-NLS-1$
+
 	private static final String ID_SEPARATOR_TASKS = "tasks"; //$NON-NLS-1$
 
 	private static final String ID_SEPARATOR_CONTEXT = "context"; //$NON-NLS-1$
@@ -389,13 +395,11 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 
 	private TaskListSorter tableSorter;
 
-	private Color categoryGradientStart;
-
-	private Color categoryGradientEnd;
+	private TaskListViewActionGroup actionGroup;
 
 	private CustomTaskListDecorationDrawer customDrawer;
 
-	private TaskListViewActionGroup actionGroup;
+	private TaskListServiceMessageControl serviceMessageControl;
 
 	private final IPageListener PAGE_LISTENER = new IPageListener() {
 		public void pageActivated(IWorkbenchPage page) {
@@ -419,71 +423,6 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 	 * True if the view should indicate that interaction monitoring is paused
 	 */
 	protected boolean isPaused = false;
-
-	boolean synchronizationOverlaid = false;
-
-	private final Listener CATEGORY_GRADIENT_DRAWER = new Listener() {
-		public void handleEvent(Event event) {
-			if (event.item.getData() instanceof ITaskContainer && !(event.item.getData() instanceof ITask)) {
-				Scrollable scrollable = (Scrollable) event.widget;
-				GC gc = event.gc;
-
-				Rectangle area = scrollable.getClientArea();
-				Rectangle rect = event.getBounds();
-
-				/* Paint the selection beyond the end of last column */
-				expandRegion(event, scrollable, gc, area);
-
-				/* Draw Gradient Rectangle */
-				Color oldForeground = gc.getForeground();
-				Color oldBackground = gc.getBackground();
-
-				gc.setForeground(categoryGradientEnd);
-				gc.drawLine(0, rect.y, area.width, rect.y);
-
-				gc.setForeground(categoryGradientStart);
-				gc.setBackground(categoryGradientEnd);
-
-				// gc.setForeground(categoryGradientStart);
-				// gc.setBackground(categoryGradientEnd);
-				// gc.setForeground(new Clr(Display.getCurrent(), 255, 0, 0));
-
-				gc.fillGradientRectangle(0, rect.y + 1, area.width, rect.height, true);
-
-				/* Bottom Line */
-				// gc.setForeground();
-				gc.setForeground(categoryGradientEnd);
-				gc.drawLine(0, rect.y + rect.height - 1, area.width, rect.y + rect.height - 1);
-
-				gc.setForeground(oldForeground);
-				gc.setBackground(oldBackground);
-				/* Mark as Background being handled */
-				event.detail &= ~SWT.BACKGROUND;
-			}
-		}
-
-		private void expandRegion(Event event, Scrollable scrollable, GC gc, Rectangle area) {
-			int columnCount;
-			if (scrollable instanceof Table) {
-				columnCount = ((Table) scrollable).getColumnCount();
-			} else {
-				columnCount = ((Tree) scrollable).getColumnCount();
-			}
-
-			if (event.index == columnCount - 1 || columnCount == 0) {
-				int width = area.x + area.width - event.x;
-				if (width > 0) {
-					Region region = new Region();
-					gc.getClipping(region);
-					region.add(event.x, event.y, width, event.height);
-					gc.setClipping(region);
-					region.dispose();
-				}
-			}
-		}
-	};
-
-	private boolean gradientListenerAdded = false;
 
 	private final ITaskActivityListener TASK_ACTIVITY_LISTENER = new TaskActivityAdapter() {
 		@Override
@@ -575,7 +514,6 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 		public void propertyChange(PropertyChangeEvent event) {
 			if (event.getProperty().equals(IThemeManager.CHANGE_CURRENT_THEME)
 					|| CommonThemes.isCommonTheme(event.getProperty())) {
-				configureGradientColors();
 				taskListTableLabelProvider.setCategoryBackgroundColor(themeManager.getCurrentTheme()
 						.getColorRegistry()
 						.get(CommonThemes.COLOR_CATEGORY));
@@ -589,65 +527,14 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 			if (ITasksUiPreferenceConstants.TASK_LIST_TOOL_TIPS_ENABLED.equals(event.getProperty())) {
 				updateTooltipEnablement();
 			}
+			if (event.getProperty().equals(ITasksUiPreferenceConstants.USE_STRIKETHROUGH_FOR_COMPLETED)
+					|| event.getProperty().equals(ITasksUiPreferenceConstants.OVERLAYS_INCOMING_TIGHT)) {
+				refreshJob.refresh();
+			}
 		}
 	};
 
 	private TaskListToolTip taskListToolTip;
-
-	private void configureGradientColors() {
-		categoryGradientStart = themeManager.getCurrentTheme().getColorRegistry().get(
-				CommonThemes.COLOR_CATEGORY_GRADIENT_START);
-		categoryGradientEnd = themeManager.getCurrentTheme().getColorRegistry().get(
-				CommonThemes.COLOR_CATEGORY_GRADIENT_END);
-
-		boolean customized = true;
-		if (categoryGradientStart != null && categoryGradientStart.getRed() == 240
-				&& categoryGradientStart.getGreen() == 240 && categoryGradientStart.getBlue() == 240
-				&& categoryGradientEnd != null && categoryGradientEnd.getRed() == 220
-				&& categoryGradientEnd.getGreen() == 220 && categoryGradientEnd.getBlue() == 220) {
-			customized = false;
-		}
-
-		if (gradientListenerAdded == false && categoryGradientStart != null
-				&& !categoryGradientStart.equals(categoryGradientEnd)) {
-			getViewer().getTree().addListener(SWT.EraseItem, CATEGORY_GRADIENT_DRAWER);
-			gradientListenerAdded = true;
-			if (!customized) {
-				// Set parent-based colors
-				Color parentBackground = getViewer().getTree().getParent().getBackground();
-				double GRADIENT_TOP = 1.05;// 1.02;
-				double GRADIENT_BOTTOM = .995;// 1.035;
-
-				int red = Math.min(255, (int) (parentBackground.getRed() * GRADIENT_TOP));
-				int green = Math.min(255, (int) (parentBackground.getGreen() * GRADIENT_TOP));
-				int blue = Math.min(255, (int) (parentBackground.getBlue() * GRADIENT_TOP));
-
-				try {
-					categoryGradientStart = new Color(Display.getDefault(), red, green, blue);
-				} catch (Exception e) {
-					categoryGradientStart = getViewer().getTree().getParent().getBackground();
-					StatusHandler.log(new Status(IStatus.ERROR, TasksUiPlugin.ID_PLUGIN, "Could not set color: " + red //$NON-NLS-1$
-							+ ", " + green + ", " + blue, e)); //$NON-NLS-1$ //$NON-NLS-2$
-				}
-				red = Math.max(0, (int) (parentBackground.getRed() / GRADIENT_BOTTOM));
-				green = Math.max(0, (int) (parentBackground.getGreen() / GRADIENT_BOTTOM));
-				blue = Math.max(0, (int) (parentBackground.getBlue() / GRADIENT_BOTTOM));
-				if (red > 255) {
-					red = 255;
-				}
-				try {
-					categoryGradientEnd = new Color(Display.getDefault(), red, green, blue);
-				} catch (Exception e) {
-					categoryGradientStart = getViewer().getTree().getParent().getBackground();
-					StatusHandler.log(new Status(IStatus.ERROR, TasksUiPlugin.ID_PLUGIN, "Could not set color: " + red //$NON-NLS-1$
-							+ ", " + green + ", " + blue, e)); //$NON-NLS-1$ //$NON-NLS-2$
-				}
-			}
-		} else if (categoryGradientStart != null && categoryGradientStart.equals(categoryGradientEnd)) {
-			getViewer().getTree().removeListener(SWT.EraseItem, CATEGORY_GRADIENT_DRAWER);
-			gradientListenerAdded = false;
-		}
-	}
 
 	public static TaskListView getFromActivePerspective() {
 		if (PlatformUI.isWorkbenchRunning()) {
@@ -678,6 +565,12 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 	@Override
 	public void dispose() {
 		super.dispose();
+
+		if (actionGroup != null) {
+			actionGroup.dispose();
+		}
+
+		TasksUiPlugin.getDefault().getServiceMessageManager().removeServiceMessageListener(serviceMessageControl);
 		TasksUiPlugin.getDefault().getPreferenceStore().removePropertyChangeListener(tasksUiPreferenceListener);
 		TasksUiInternal.getTaskList().removeChangeListener(TASKLIST_CHANGE_LISTENER);
 		TasksUiPlugin.getTaskActivityManager().removeActivityListener(TASK_ACTIVITY_LISTENER);
@@ -696,10 +589,6 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 		if (editorListener != null) {
 			getSite().getPage().removePartListener(editorListener);
 		}
-
-		customDrawer.dispose();
-		categoryGradientStart.dispose();
-		categoryGradientEnd.dispose();
 	}
 
 	private void updateDescription() {
@@ -746,6 +635,10 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 
 		memento.putString(MEMENTO_LINK_WITH_EDITOR, Boolean.toString(linkWithEditor));
 		memento.putString(MEMENTO_PRESENTATION, currentPresentation.getId());
+
+		if (filteredTree.getTextSearchControl() != null) {
+			filteredTree.getTextSearchControl().saveState(memento);
+		}
 	}
 
 	private void restoreState() {
@@ -783,6 +676,10 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 			linkValue = Boolean.parseBoolean(taskListMemento.getString(MEMENTO_LINK_WITH_EDITOR));
 		}
 		setLinkWithEditor(linkValue);
+
+		if (taskListMemento != null && filteredTree.getTextSearchControl() != null) {
+			filteredTree.getTextSearchControl().restoreState(taskListMemento);
+		}
 
 		getViewer().refresh();
 	}
@@ -850,6 +747,15 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 
 	@Override
 	public void createPartControl(Composite parent) {
+		Composite body = new Composite(parent, SWT.NONE);
+		GridLayout layout = new GridLayout(1, false);
+		layout.marginHeight = 0;
+		layout.marginWidth = 0;
+		layout.horizontalSpacing = 0;
+		layout.verticalSpacing = 0;
+		layout.numColumns = 1;
+		body.setLayout(layout);
+
 		IWorkbenchSiteProgressService progress = (IWorkbenchSiteProgressService) getSite().getAdapter(
 				IWorkbenchSiteProgressService.class);
 		if (progress != null) {
@@ -863,7 +769,7 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 		themeManager = getSite().getWorkbenchWindow().getWorkbench().getThemeManager();
 		themeManager.addPropertyChangeListener(THEME_CHANGE_LISTENER);
 
-		filteredTree = new TaskListFilteredTree(parent, SWT.MULTI | SWT.VERTICAL | /* SWT.H_SCROLL | */SWT.V_SCROLL
+		filteredTree = new TaskListFilteredTree(body, SWT.MULTI | SWT.VERTICAL | /* SWT.H_SCROLL | */SWT.V_SCROLL
 				| SWT.NO_SCROLL | SWT.FULL_SELECTION, new SubstringPatternFilter(), getViewSite().getWorkbenchWindow());
 
 		// need to do initialize tooltip early for native tooltip disablement to take effect
@@ -919,7 +825,7 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 		getViewer().setInput(getViewSite());
 
 		final int activationImageOffset = PlatformUtil.getTreeImageOffset();
-		customDrawer = new CustomTaskListDecorationDrawer(this, activationImageOffset);
+		customDrawer = new CustomTaskListDecorationDrawer(activationImageOffset, false);
 		getViewer().getTree().addListener(SWT.EraseItem, customDrawer);
 		getViewer().getTree().addListener(SWT.PaintItem, customDrawer);
 
@@ -966,9 +872,9 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 				} else if (e.stateMask == 0) {
 					if (Character.isLetter((char) e.keyCode) || Character.isDigit((char) e.keyCode)) {
 						String string = new Character((char) e.keyCode).toString();
+						filteredTree.getFilterControl().setFocus();
 						filteredTree.getFilterControl().setText(string);
 						filteredTree.getFilterControl().setSelection(1, 1);
-						filteredTree.getFilterControl().setFocus();
 					}
 				}
 			}
@@ -1018,7 +924,7 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 		contributeToActionBars();
 		initHandlers();
 
-		configureGradientColors();
+		new GradientDrawer(themeManager, getViewer());
 
 		initDragAndDrop(parent);
 		expandToActiveTasks();
@@ -1042,6 +948,33 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 		TasksUiInternal.getTaskList().addChangeListener(TASKLIST_CHANGE_LISTENER);
 
 		TasksUiPlugin.getDefault().getPreferenceStore().addPropertyChangeListener(tasksUiPreferenceListener);
+
+		serviceMessageControl = new TaskListServiceMessageControl(body);
+
+		List<TaskRepository> repos = TasksUi.getRepositoryManager().getAllRepositories();
+		boolean showMessage = true;
+		for (TaskRepository repository : repos) {
+			if (!repository.getConnectorKind().equals("local") //$NON-NLS-1$
+					&& !TaskRepositoryUtil.isAddAutomatically(repository.getRepositoryUrl())) {
+				showMessage = false;
+				break;
+			}
+		}
+
+		String lastClosedId = TasksUiPlugin.getDefault()
+				.getPreferenceStore()
+				.getString(ITasksUiPreferenceConstants.LAST_SERVICE_MESSAGE_ID);
+
+		if (showMessage && lastClosedId.equals("")) { //$NON-NLS-1$
+			ServiceMessage message = new ServiceMessage();
+			message.setDescription("<a href=\"connect\">Connect</a> to your task and ALM tools."); //$NON-NLS-1$
+			message.setTitle("Connect Mylyn"); //$NON-NLS-1$
+			message.setImage(Dialog.DLG_IMG_MESSAGE_INFO);
+			message.setId("0"); //$NON-NLS-1$
+			serviceMessageControl.setMessage(message);
+		}
+
+		TasksUiPlugin.getDefault().getServiceMessageManager().addServiceMessageListener(serviceMessageControl);
 
 		// Need to do this because the page, which holds the active working set is not around on creation, see bug 203179
 		PlatformUI.getWorkbench().getActiveWorkbenchWindow().addPageListener(PAGE_LISTENER);
@@ -1095,6 +1028,14 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 	private void updatePresentationSelectorImage() {
 		if (presentationDropDownSelectionAction != null && currentPresentation != null) {
 			presentationDropDownSelectionAction.setImageDescriptor(currentPresentation.getImageDescriptor());
+		}
+		for (IContributionItem item : getViewSite().getActionBars().getToolBarManager().getItems()) {
+			if (item instanceof ActionContributionItem) {
+				IAction action = ((ActionContributionItem) item).getAction();
+				if (action instanceof PresentationDropDownSelectionAction.PresentationSelectionAction) {
+					((PresentationDropDownSelectionAction.PresentationSelectionAction) action).update();
+				}
+			}
 		}
 	}
 
@@ -1234,7 +1175,8 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 		manager.add(filterCompleteTask);
 		manager.add(filterSubTasksAction);
 
-		manager.add(new Separator(ID_SEPARATOR_TASKS));
+		manager.add(new Separator(ID_SEPARATOR_SEARCH));
+		manager.add(new GroupMarker(ID_SEPARATOR_TASKS));
 		manager.add(synchronizeAutomatically);
 
 		manager.add(new Separator(IWorkbenchActionConstants.MB_ADDITIONS));
@@ -1252,12 +1194,29 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 
 	private void fillLocalToolBar(IToolBarManager manager) {
 		manager.add(newTaskAction);
-		manager.add(presentationDropDownSelectionAction);
+		manager.add(new Separator());
+		addPresentations(manager);
+		manager.add(new Separator());
+		manager.add(new GroupMarker(ID_SEPARATOR_CONTEXT));
 		manager.add(new Separator());
 		manager.add(filterCompleteTask);
 		manager.add(collapseAll);
-		manager.add(new GroupMarker(ID_SEPARATOR_CONTEXT));
 		manager.add(new Separator(IWorkbenchActionConstants.MB_ADDITIONS));
+	}
+
+	private void addPresentations(IToolBarManager manager) {
+		for (AbstractTaskListPresentation presentation : TaskListView.getPresentations()) {
+			if (!presentation.isPrimary()) {
+				// at least one non primary presentation present
+				manager.add(presentationDropDownSelectionAction);
+				return;
+			}
+		}
+
+		// add toggle buttons for primary presentations
+		for (AbstractTaskListPresentation presentation : TaskListView.getPresentations()) {
+			manager.add(new PresentationDropDownSelectionAction.PresentationSelectionAction(this, presentation));
+		}
 	}
 
 	public List<IRepositoryElement> getSelectedTaskContainers() {
@@ -1298,8 +1257,9 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 
 		getViewer().addDoubleClickListener(new IDoubleClickListener() {
 			public void doubleClick(DoubleClickEvent event) {
-				if (TasksUiPlugin.getDefault().getPreferenceStore().getBoolean(
-						ITasksUiPreferenceConstants.ACTIVATE_WHEN_OPENED)) {
+				if (TasksUiPlugin.getDefault()
+						.getPreferenceStore()
+						.getBoolean(ITasksUiPreferenceConstants.ACTIVATE_WHEN_OPENED)) {
 					AbstractTask selectedTask = getSelectedTask();
 					if (selectedTask != null && !selectedTask.isActive()) {
 						TasksUiInternal.activateTaskThroughCommand(selectedTask);
@@ -1520,8 +1480,9 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 
 	public static String getCurrentPriorityLevel() {
 		if (TasksUiPlugin.getDefault().getPreferenceStore().contains(ITasksUiPreferenceConstants.FILTER_PRIORITY)) {
-			return TasksUiPlugin.getDefault().getPreferenceStore().getString(
-					ITasksUiPreferenceConstants.FILTER_PRIORITY);
+			return TasksUiPlugin.getDefault()
+					.getPreferenceStore()
+					.getString(ITasksUiPreferenceConstants.FILTER_PRIORITY);
 		} else {
 			return PriorityLevel.P5.toString();
 		}
@@ -1554,8 +1515,9 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 	}
 
 	private boolean isAutoExpandMode() {
-		return TasksUiPlugin.getDefault().getPreferenceStore().getBoolean(
-				ITasksUiPreferenceConstants.AUTO_EXPAND_TASK_LIST);
+		return TasksUiPlugin.getDefault()
+				.getPreferenceStore()
+				.getBoolean(ITasksUiPreferenceConstants.AUTO_EXPAND_TASK_LIST);
 	}
 
 	public void setFocusedMode(boolean focusedMode) {
@@ -1563,22 +1525,35 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 			return;
 		}
 		this.focusedMode = focusedMode;
+		customDrawer.setFocusedMode(focusedMode);
 		IToolBarManager manager = getViewSite().getActionBars().getToolBarManager();
-
-		if (focusedMode && isAutoExpandMode()) {
-			manager.remove(FilterCompletedTasksAction.ID);
-			manager.remove(CollapseAllAction.ID);
-		} else if (manager.find(CollapseAllAction.ID) == null) {
-			manager.prependToGroup(ID_SEPARATOR_CONTEXT, collapseAll);
-			manager.prependToGroup(ID_SEPARATOR_CONTEXT, filterCompleteTask);
+		ToolBarManager toolBarManager = getToolBarManager(manager);
+		try {
+			if (toolBarManager != null) {
+				toolBarManager.getControl().setRedraw(false);
+			}
+			if (focusedMode && isAutoExpandMode()) {
+				manager.remove(FilterCompletedTasksAction.ID);
+				manager.remove(CollapseAllAction.ID);
+			} else if (manager.find(CollapseAllAction.ID) == null) {
+				manager.prependToGroup(ID_SEPARATOR_CONTEXT, collapseAll);
+				manager.prependToGroup(ID_SEPARATOR_CONTEXT, filterCompleteTask);
+			}
+			updateFilterEnablement();
+			manager.update(false);
+		} finally {
+			if (toolBarManager != null) {
+				toolBarManager.getControl().setRedraw(true);
+			}
 		}
-		manager.update(false);
-		updateFilterEnablement();
 	}
 
-	public void setSynchronizationOverlaid(boolean synchronizationOverlaid) {
-		this.synchronizationOverlaid = synchronizationOverlaid;
-		getViewer().refresh();
+	private ToolBarManager getToolBarManager(IToolBarManager manager) {
+		if (manager instanceof ToolBarManager && ((ToolBarManager) manager).getControl() != null
+				&& !((ToolBarManager) manager).getControl().isDisposed()) {
+			return (ToolBarManager) manager;
+		}
+		return null;
 	}
 
 	public void displayPrioritiesAbove(String priority) {
@@ -1690,8 +1665,9 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 		// bug#160897
 		// http://dev.eclipse.org/newslists/news.eclipse.platform.swt/msg29614.html
 		if (taskListToolTip != null) {
-			boolean enabled = TasksUiPlugin.getDefault().getPreferenceStore().getBoolean(
-					ITasksUiPreferenceConstants.TASK_LIST_TOOL_TIPS_ENABLED);
+			boolean enabled = TasksUiPlugin.getDefault()
+					.getPreferenceStore()
+					.getBoolean(ITasksUiPreferenceConstants.TASK_LIST_TOOL_TIPS_ENABLED);
 			taskListToolTip.setEnabled(enabled);
 			if (getViewer().getTree() != null && !getViewer().getTree().isDisposed()) {
 				getViewer().getTree().setToolTipText((enabled) ? "" : null); //$NON-NLS-1$
@@ -1699,4 +1675,32 @@ public class TaskListView extends ViewPart implements IPropertyChangeListener, I
 		}
 	}
 
+	@SuppressWarnings("rawtypes")
+	@Override
+	public Object getAdapter(Class adapter) {
+		if (adapter == ISizeProvider.class) {
+			return new ISizeProvider() {
+				public int getSizeFlags(boolean width) {
+					if (width) {
+						return SWT.MIN;
+					}
+					return 0;
+				}
+
+				public int computePreferredSize(boolean width, int availableParallel, int availablePerpendicular,
+						int preferredResult) {
+					if (width) {
+						if (getViewSite().getActionBars().getToolBarManager() instanceof ToolBarManager) {
+							Point size = ((ToolBarManager) getViewSite().getActionBars().getToolBarManager()).getControl()
+									.computeSize(SWT.DEFAULT, SWT.DEFAULT);
+							// leave some room for the view menu drop-down
+							return size.x + PlatformUtil.getViewMenuWidth();
+						}
+					}
+					return preferredResult;
+				}
+			};
+		}
+		return super.getAdapter(adapter);
+	}
 }

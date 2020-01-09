@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -46,30 +46,31 @@ public class RepositoryReportFactoryTest extends TestCase {
 		connector = BugzillaFixture.current().connector();
 	}
 
-	public void testInvalidCredentials222() throws Exception {
-		String errorMessage = "";
+	public void testInvalidCredentials() throws Exception {
 		try {
 			client.logout(new NullProgressMonitor());
 			repository.setCredentials(AuthenticationType.REPOSITORY,
 					new AuthenticationCredentials("invalid", "invalid"), false);
 			connector.getTaskData(repository, "1", new NullProgressMonitor());
+			fail("CoreException expected but not found");
 		} catch (CoreException e) {
-			errorMessage = e.getStatus().getMessage();
+			if (!e.getStatus().getMessage().startsWith("Unable to login")) {
+				throw e;
+			}
 		}
-		assertTrue(errorMessage.startsWith("Unable to login"));
 		repository.flushAuthenticationCredentials();
 	}
 
-	public void testBugNotFound222() {
-
-		String errorMessage = "";
+	public void testBugNotFound() throws Exception {
 		try {
 			connector.getClientManager().repositoryAdded(repository);
 			connector.getTaskData(repository, "-1", new NullProgressMonitor());
+			fail("Expected CoreException");
 		} catch (CoreException e) {
-			errorMessage = e.getStatus().getMessage();
+			if (!e.getStatus().getMessage().startsWith("Repository error from")) {
+				throw e;
+			}
 		}
-		assertTrue(errorMessage.startsWith("Repository error from"));
 	}
 
 	public void testPostingAndReadingAttributes() throws Exception {

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2008 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -28,6 +28,10 @@ public class Messages extends NLS {
 	public static String AddTaskRepositoryHandler_Add_Task_Repository;
 
 	public static String NewLocalTaskHandler_Could_not_create_local_task;
+
+	public static String OpenTaskAttachmentHandler_failedToOpenViewer;
+
+	public static String OpenTaskAttachmentHandler_noAttachmentViewerFound;
 
 	public static String OpenTaskAttachmentInDefaultEditorHandler_Failed_to_open_editor;
 

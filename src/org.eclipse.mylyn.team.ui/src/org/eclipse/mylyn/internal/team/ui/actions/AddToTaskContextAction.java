@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2008 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -72,7 +72,8 @@ public class AddToTaskContextAction extends Action implements IViewActionDelegat
 
 	private void run(StructuredSelection selection) {
 		if (!ContextCore.getContextManager().isContextActive()) {
-			MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), Messages.AddToTaskContextAction_Add_to_Task_Context,
+			MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(),
+					Messages.AddToTaskContextAction_Add_to_Task_Context,
 					Messages.AddToTaskContextAction_ACTIVATE_TASK_TO_ADD_RESOURCES);
 		}
 
@@ -86,7 +87,9 @@ public class AddToTaskContextAction extends Action implements IViewActionDelegat
 		} else if (element instanceof LinkedTaskInfo) {
 			LinkedTaskInfo linkedTaskInfo = (LinkedTaskInfo) element;
 			ChangeSet changeSet = linkedTaskInfo.getChangeSet();
-			resources = changeSet.getResources();
+			if (changeSet != null) {
+				resources = changeSet.getResources();
+			}
 		}
 
 		Set<IResource> resourcesToAdd = new HashSet<IResource>();
@@ -111,7 +114,8 @@ public class AddToTaskContextAction extends Action implements IViewActionDelegat
 		if (!resourcesToAdd.isEmpty()) {
 			ResourcesUi.addResourceToContext(resourcesToAdd, InteractionEvent.Kind.SELECTION);
 		} else {
-			MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), Messages.AddToTaskContextAction_Add_to_Task_Context,
+			MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(),
+					Messages.AddToTaskContextAction_Add_to_Task_Context,
 					Messages.AddToTaskContextAction_No_resources_to_add);
 		}
 	}

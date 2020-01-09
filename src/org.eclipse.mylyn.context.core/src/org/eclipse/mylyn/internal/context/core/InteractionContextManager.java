@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -919,6 +919,29 @@ public class InteractionContextManager implements IInteractionContextManager {
 	/**
 	 * @return true if interest was manipulated successfully
 	 */
+	public boolean manipulateInterestForElements(List<IInteractionElement> elements, boolean increment,
+			boolean forceLandmark, boolean preserveUninteresting, String sourceId, IInteractionContext context,
+			boolean isExplicitManipulation) {
+		Set<IInteractionElement> changedElements = new HashSet<IInteractionElement>();
+		boolean manipulated = false;
+		for (IInteractionElement element : elements) {
+			manipulated |= manipulateInterestForElementHelper(element, increment, forceLandmark, preserveUninteresting,
+					sourceId, context, changedElements, null, isExplicitManipulation);
+		}
+		if (manipulated) {
+			if (preserveUninteresting || increment) {
+				notifyInterestDelta(new ArrayList<IInteractionElement>(changedElements));
+			} else {
+				notifyElementsDeleted(context, new ArrayList<IInteractionElement>(changedElements),
+						isExplicitManipulation);
+			}
+		}
+		return manipulated;
+	}
+
+	/**
+	 * @return true if interest was manipulated successfully
+	 */
 	public boolean manipulateInterestForElement(IInteractionElement element, boolean increment, boolean forceLandmark,
 			boolean preserveUninteresting, String sourceId, IInteractionContext context, boolean isExplicitManipulation) {
 		Set<IInteractionElement> changedElements = new HashSet<IInteractionElement>();
@@ -986,8 +1009,7 @@ public class InteractionContextManager implements IInteractionContextManager {
 				// reduce interest of children
 				for (String childHandle : bridge.getChildHandles(element.getHandleIdentifier())) {
 					IInteractionElement childElement = context.get(childHandle);
-					if (childElement != null /*&& childElement.getInterest().isInteresting()*/
-							&& !childElement.equals(element)) {
+					if (childElement != null && isAPartOfContext(childElement) && !childElement.equals(element)) {
 						manipulateInterestForElementHelper(childElement, increment, forceLandmark,
 								preserveUninteresting, sourceId, context, changedElements, forcedBridge,
 								isExplicitManipulation);
@@ -1016,6 +1038,14 @@ public class InteractionContextManager implements IInteractionContextManager {
 		} else { //if (changeValue < context.getScaling().getInteresting()) {
 			changedElements.add(element);
 			delete(element, context);
+		}
+		return true;
+	}
+
+	private boolean isAPartOfContext(IInteractionElement childElement) {
+		if (childElement instanceof CompositeContextElement) {
+			CompositeContextElement element = (CompositeContextElement) childElement;
+			return element.getNodes() != null && element.getNodes().size() > 0;
 		}
 		return true;
 	}
@@ -1280,6 +1310,8 @@ public class InteractionContextManager implements IInteractionContextManager {
 					if (!canonicalBridge.getContentType().equals(ContextCore.CONTENT_TYPE_RESOURCE)) {
 						// NOTE: resetting bridge
 						bridge = canonicalBridge;
+						parentHandle = bridge.getHandleIdentifier(resolved);
+						break;
 					}
 				}
 			}
@@ -1489,4 +1521,5 @@ public class InteractionContextManager implements IInteractionContextManager {
 			}
 		}
 	}
+
 }

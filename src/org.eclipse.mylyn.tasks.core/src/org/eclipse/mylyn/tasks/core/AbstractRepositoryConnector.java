@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -11,6 +11,7 @@
 
 package org.eclipse.mylyn.tasks.core;
 
+import java.net.URL;
 import java.util.Collection;
 import java.util.Date;
 
@@ -70,7 +71,7 @@ public abstract class AbstractRepositoryConnector {
 	}
 
 	/**
-	 * Whether the connector can delete the task on the Task Repository
+	 * Returns true, if the connector supports deletion of <code>task</code> which is part of <code>repository</code>.
 	 * 
 	 * @since 3.3
 	 */
@@ -79,7 +80,18 @@ public abstract class AbstractRepositoryConnector {
 	}
 
 	/**
-	 * @return the unique kind of the repository, e.g. "bugzilla"
+	 * Return true, if the connector supports creation of task repositories. The default default implementation returns
+	 * true.
+	 * 
+	 * @since 3.4
+	 */
+	public boolean canCreateRepository() {
+		return true;
+	}
+
+	/**
+	 * Returns the unique kind of the repository, e.g. "bugzilla".
+	 * 
 	 * @since 2.0
 	 */
 	public abstract String getConnectorKind();
@@ -141,9 +153,13 @@ public abstract class AbstractRepositoryConnector {
 	}
 
 	/**
+	 * Returns the ID for the task that is referenced by <code>taskUrl</code>. If the ID can not be determined
+	 * <code>null</code> may be returned.
+	 * 
+	 * @return the ID of the task referenced by taskUrl; null, if the ID can not be determined
 	 * @since 2.0
 	 */
-	public abstract String getTaskIdFromTaskUrl(String taskFullUrl);
+	public abstract String getTaskIdFromTaskUrl(String taskUrl);
 
 	/**
 	 * Used for referring to the task in the UI.
@@ -176,9 +192,30 @@ public abstract class AbstractRepositoryConnector {
 	}
 
 	/**
+	 * Returns the URL for the task that corresponds to <code>taskId</code>. If the URL can not be constructed
+	 * <code>null</code> may be returned.
+	 * 
+	 * @return the URL of the task; null, if the URL can not be determined
 	 * @since 2.0
 	 */
 	public abstract String getTaskUrl(String repositoryUrl, String taskId);
+
+	/**
+	 * Returns a URL for <code>element</code> that contains authentication information such as a session ID.
+	 * <p>
+	 * Returns <code>null</code> by default. Clients may override.
+	 * 
+	 * @param repository
+	 *            the repository for <code>element</code>
+	 * @param element
+	 *            the element to return the authenticated url for
+	 * @return null, if no corresponding authenticated URL is available for <code>element</code>; the URL, otherwise
+	 * @see IRepositoryElement#getUrl()
+	 * @since 3.4
+	 */
+	public URL getAuthenticatedUrl(TaskRepository repository, IRepositoryElement element) {
+		return null;
+	}
 
 	/**
 	 * @since 3.0
@@ -315,5 +352,18 @@ public abstract class AbstractRepositoryConnector {
 	 * @since 3.0
 	 */
 	public abstract void updateTaskFromTaskData(TaskRepository taskRepository, ITask task, TaskData taskData);
+
+	/**
+	 * Invoked when a task associated with this connector is migrated. This typically happens when an unsubmitted task
+	 * is submitted to the repository. Implementers may override to implement custom migration rules.
+	 * <p>
+	 * Does nothing by default.
+	 * 
+	 * @param event
+	 *            provides additional details
+	 * @since 3.4
+	 */
+	public void migrateTask(TaskMigrationEvent event) {
+	}
 
 }

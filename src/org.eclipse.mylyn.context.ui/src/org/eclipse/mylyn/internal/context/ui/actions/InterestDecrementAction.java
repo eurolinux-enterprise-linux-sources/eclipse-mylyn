@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -14,7 +14,7 @@ package org.eclipse.mylyn.internal.context.ui.actions;
 /**
  * @author Mik Kersten
  */
-// TODO 3.4 rename to RemoveFromContextAction?
+// TODO 3.5 rename to RemoveFromContextAction?
 public class InterestDecrementAction extends AbstractInterestManipulationAction {
 
 	@Override

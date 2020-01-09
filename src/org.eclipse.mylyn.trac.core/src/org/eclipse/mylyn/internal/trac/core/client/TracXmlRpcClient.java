@@ -44,12 +44,14 @@ import org.apache.commons.httpclient.methods.HeadMethod;
 import org.apache.xmlrpc.XmlRpcException;
 import org.apache.xmlrpc.client.XmlRpcClient;
 import org.apache.xmlrpc.client.XmlRpcClientConfigImpl;
+import org.apache.xmlrpc.serializer.CharSetXmlWriterFactory;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.mylyn.commons.core.CoreUtil;
 import org.eclipse.mylyn.commons.core.StatusHandler;
 import org.eclipse.mylyn.commons.net.AbstractWebLocation;
 import org.eclipse.mylyn.commons.net.AuthenticationCredentials;
@@ -68,20 +70,20 @@ import org.eclipse.mylyn.internal.trac.core.model.TracRepositoryInfo;
 import org.eclipse.mylyn.internal.trac.core.model.TracSearch;
 import org.eclipse.mylyn.internal.trac.core.model.TracSeverity;
 import org.eclipse.mylyn.internal.trac.core.model.TracTicket;
+import org.eclipse.mylyn.internal.trac.core.model.TracTicket.Key;
 import org.eclipse.mylyn.internal.trac.core.model.TracTicketField;
+import org.eclipse.mylyn.internal.trac.core.model.TracTicketField.Type;
 import org.eclipse.mylyn.internal.trac.core.model.TracTicketResolution;
 import org.eclipse.mylyn.internal.trac.core.model.TracTicketStatus;
 import org.eclipse.mylyn.internal.trac.core.model.TracTicketType;
 import org.eclipse.mylyn.internal.trac.core.model.TracVersion;
 import org.eclipse.mylyn.internal.trac.core.model.TracWikiPage;
 import org.eclipse.mylyn.internal.trac.core.model.TracWikiPageInfo;
-import org.eclipse.mylyn.internal.trac.core.model.TracTicket.Key;
-import org.eclipse.mylyn.internal.trac.core.model.TracTicketField.Type;
 import org.eclipse.mylyn.internal.trac.core.util.HttpMethodInterceptor;
 import org.eclipse.mylyn.internal.trac.core.util.TracHttpClientTransportFactory;
+import org.eclipse.mylyn.internal.trac.core.util.TracHttpClientTransportFactory.TracHttpException;
 import org.eclipse.mylyn.internal.trac.core.util.TracUtil;
 import org.eclipse.mylyn.internal.trac.core.util.TracXmlRpcClientRequest;
-import org.eclipse.mylyn.internal.trac.core.util.TracHttpClientTransportFactory.TracHttpException;
 import org.eclipse.osgi.util.NLS;
 
 /**
@@ -92,7 +94,11 @@ import org.eclipse.osgi.util.NLS;
  */
 public class TracXmlRpcClient extends AbstractTracClient implements ITracWikiClient {
 
-	private static final Pattern RPC_METHOD_NOT_FOUND_PATTERN = Pattern.compile("RPC method \".*\" not found"); //$NON-NLS-1$
+	private static final Pattern ERROR_PATTERN_RPC_METHOD_NOT_FOUND = Pattern.compile("RPC method \".*\" not found"); //$NON-NLS-1$
+
+	private static final Pattern ERROR_PATTERN_MID_AIR_COLLISION = Pattern.compile("Sorry, can not save your changes.*This ticket has been modified by someone else since you started"); //$NON-NLS-1$
+
+	private static final String ERROR_XML_RPC_PRIVILEGES_REQUIRED = "XML_RPC privileges are required to perform this operation"; //$NON-NLS-1$
 
 	private class XmlRpcRequest {
 
@@ -156,7 +162,7 @@ public class TracXmlRpcClient extends AbstractTracClient implements ITracWikiCli
 					probeAuthenticationScheme(monitor);
 				}
 				if (DEBUG_XMLRPC) {
-					System.err.println("Calling " + location.getUrl() + ": " + method + " " + TracUtil.toString(parameters)); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+					System.err.println("Calling " + location.getUrl() + ": " + method + " " + CoreUtil.toString(parameters)); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
 				}
 				TracXmlRpcClientRequest request = new TracXmlRpcClientRequest(xmlrpc.getClientConfig(), method,
 						parameters, monitor);
@@ -167,13 +173,14 @@ public class TracXmlRpcClient extends AbstractTracClient implements ITracWikiCli
 				throw new TracException(e);
 			} catch (XmlRpcException e) {
 				// XXX work-around for http://trac-hacks.org/ticket/5848 
-				if ("XML_RPC privileges are required to perform this operation".equals(e.getMessage()) //$NON-NLS-1$
-						|| e.code == XML_FAULT_PERMISSION_DENIED) {
+				if (ERROR_XML_RPC_PRIVILEGES_REQUIRED.equals(e.getMessage()) || e.code == XML_FAULT_PERMISSION_DENIED) {
 					handleAuthenticationException(HttpStatus.SC_FORBIDDEN, null);
 					// should never happen as call above should always throw an exception
 					throw new TracRemoteException(e);
 				} else if (isNoSuchMethodException(e)) {
 					throw new TracNoSuchMethodException(e);
+				} else if (isMidAirCollision(e)) {
+					throw new TracMidAirCollisionException(e);
 				} else {
 					throw new TracRemoteException(e);
 				}
@@ -184,6 +191,14 @@ public class TracXmlRpcClient extends AbstractTracClient implements ITracWikiCli
 			}
 		}
 
+		private boolean isMidAirCollision(XmlRpcException e) {
+			if (e.code == XML_FAULT_GENERAL_ERROR && e.getMessage() != null
+					&& ERROR_PATTERN_MID_AIR_COLLISION.matcher(e.getMessage()).find()) {
+				return true;
+			}
+			return false;
+		}
+
 		private boolean isNoSuchMethodException(XmlRpcException e) {
 			// the fault code is used for various errors, therefore detection is based on the message
 			// message format by XML-RPC Plugin version:
@@ -191,7 +206,7 @@ public class TracXmlRpcClient extends AbstractTracClient implements ITracWikiCli
 			//  1.0.6: RPC method "ticket.ge1t" not found
 			//  1.10:  RPC method "ticket.ge1t" not found' while executing 'ticket.ge1t()
 			if (e.code == XML_FAULT_GENERAL_ERROR && e.getMessage() != null
-					&& RPC_METHOD_NOT_FOUND_PATTERN.matcher(e.getMessage()).find()) {
+					&& ERROR_PATTERN_RPC_METHOD_NOT_FOUND.matcher(e.getMessage()).find()) {
 				return true;
 			}
 			return false;
@@ -286,6 +301,8 @@ public class TracXmlRpcClient extends AbstractTracClient implements ITracWikiCli
 
 			xmlrpc = new XmlRpcClient();
 			xmlrpc.setConfig(config);
+			// bug 307200: force factory that supports proper UTF-8 encoding
+			xmlrpc.setXmlWriterFactory(new CharSetXmlWriterFactory());
 
 			factory = new TracHttpClientTransportFactory(xmlrpc, httpClient);
 			factory.setLocation(location);
@@ -323,8 +340,13 @@ public class TracXmlRpcClient extends AbstractTracClient implements ITracWikiCli
 			AuthenticationCredentials credentials = location.getCredentials(AuthenticationType.REPOSITORY);
 			config.setServerURL(getXmlRpcUrl(credentials));
 			if (credentialsValid(credentials)) {
-				Credentials creds = WebUtil.getHttpClientCredentials(credentials, WebUtil.getHost(location.getUrl()));
-				httpClient.getState().setCredentials(authScope, creds);
+				Credentials httpCredentials = WebUtil.getHttpClientCredentials(credentials,
+						WebUtil.getHost(location.getUrl()));
+				httpClient.getState().setCredentials(authScope, httpCredentials);
+//				if (CoreUtil.TEST_MODE) {
+//					System.err.println(" Setting credentials: " + httpCredentials); //$NON-NLS-1$
+//				}
+				httpClient.getState().setCredentials(authScope, httpCredentials);
 			} else {
 				httpClient.getState().clearCredentials();
 			}
@@ -410,7 +432,7 @@ public class TracXmlRpcClient extends AbstractTracClient implements ITracWikiCli
 		} catch (IOException e) {
 			// ignore
 		} finally {
-			method.releaseConnection();
+			WebUtil.releaseConnection(method, monitor);
 		}
 	}
 
@@ -435,20 +457,23 @@ public class TracXmlRpcClient extends AbstractTracClient implements ITracWikiCli
 				try {
 					location.requestCredentials(AuthenticationType.REPOSITORY, null, monitor);
 				} catch (UnsupportedRequestException ignored) {
-					lastException = e;
+					throw e;
 				}
+				lastException = e;
 			} catch (TracPermissionDeniedException e) {
 				try {
 					location.requestCredentials(AuthenticationType.REPOSITORY, null, monitor);
 				} catch (UnsupportedRequestException ignored) {
-					lastException = e;
+					throw e;
 				}
+				lastException = e;
 			} catch (TracProxyAuthenticationException e) {
 				try {
 					location.requestCredentials(AuthenticationType.PROXY, null, monitor);
 				} catch (UnsupportedRequestException ignored) {
-					lastException = e;
+					throw e;
 				}
+				lastException = e;
 			}
 		}
 		if (lastException != null) {
@@ -869,14 +894,14 @@ public class TracXmlRpcClient extends AbstractTracClient implements ITracWikiCli
 	}
 
 	public void putAttachmentData(int ticketId, String filename, String description, InputStream in,
-			IProgressMonitor monitor) throws TracException {
+			IProgressMonitor monitor, boolean replace) throws TracException {
 		byte[] data;
 		try {
 			data = readData(in, new NullProgressMonitor());
 		} catch (IOException e) {
 			throw new TracException(e);
 		}
-		call(monitor, "ticket.putAttachment", ticketId, filename, description, data, false); //$NON-NLS-1$
+		call(monitor, "ticket.putAttachment", ticketId, filename, description, data, replace); //$NON-NLS-1$
 	}
 
 	private byte[] readData(InputStream in, IProgressMonitor monitor) throws IOException {
@@ -943,7 +968,10 @@ public class TracXmlRpcClient extends AbstractTracClient implements ITracWikiCli
 		if (!supportsWorkFlow(monitor)) {
 			// submitted as part of status and resolution updates for Trac < 0.11
 			attributes.remove("action"); //$NON-NLS-1$
+			// avoid confusing older XML-RPC plugin versions
+			attributes.remove(Key.TOKEN.getKey());
 		}
+
 		if (supportsNotifications(monitor)) {
 			call(monitor, "ticket.update", ticket.getId(), comment, attributes, true); //$NON-NLS-1$
 		} else {

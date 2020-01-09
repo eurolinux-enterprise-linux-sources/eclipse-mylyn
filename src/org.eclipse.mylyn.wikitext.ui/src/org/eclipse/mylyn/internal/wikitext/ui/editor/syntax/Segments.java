@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2008 David Green and others.
+ * Copyright (c) 2007, 2009 David Green and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -15,19 +15,16 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 
- * 
  * @author David Green
  */
 public class Segments<T extends Segment<?>> {
 	private List<T> list;
 
-	@SuppressWarnings("unchecked")
 	public void add(T t) {
 		if (list == null) {
 			list = new ArrayList<T>();
 		} else if (list.size() > 0) {
-			Segment previousSegment = list.get(list.size() - 1);
+			Segment<?> previousSegment = list.get(list.size() - 1);
 			final int tOffset = t.getOffset();
 			if (previousSegment.getOffset() > tOffset) {
 				throw new IllegalArgumentException();

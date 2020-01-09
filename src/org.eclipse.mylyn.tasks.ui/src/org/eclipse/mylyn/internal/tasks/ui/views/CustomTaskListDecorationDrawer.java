@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -18,6 +18,7 @@ import org.eclipse.mylyn.internal.provisional.commons.ui.CommonFonts;
 import org.eclipse.mylyn.internal.provisional.commons.ui.CommonImages;
 import org.eclipse.mylyn.internal.tasks.core.AbstractTask;
 import org.eclipse.mylyn.internal.tasks.core.RepositoryQuery;
+import org.eclipse.mylyn.internal.tasks.core.ScheduledTaskContainer;
 import org.eclipse.mylyn.internal.tasks.core.TaskCategory;
 import org.eclipse.mylyn.internal.tasks.core.UnmatchedTaskContainer;
 import org.eclipse.mylyn.internal.tasks.ui.AbstractTaskListFilter;
@@ -26,8 +27,8 @@ import org.eclipse.mylyn.internal.tasks.ui.TasksUiPlugin;
 import org.eclipse.mylyn.internal.tasks.ui.util.PlatformUtil;
 import org.eclipse.mylyn.tasks.core.IRepositoryQuery;
 import org.eclipse.mylyn.tasks.core.ITask;
-import org.eclipse.mylyn.tasks.core.ITaskContainer;
 import org.eclipse.mylyn.tasks.core.ITask.SynchronizationState;
+import org.eclipse.mylyn.tasks.core.ITaskContainer;
 import org.eclipse.mylyn.tasks.ui.TasksUiImages;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Image;
@@ -39,10 +40,9 @@ import org.eclipse.swt.widgets.TreeItem;
 
 /**
  * @author Mik Kersten
+ * @author Frank Becker
  */
-class CustomTaskListDecorationDrawer implements Listener {
-
-	private final TaskListView taskListView;
+public class CustomTaskListDecorationDrawer implements Listener {
 
 	private final int activationImageOffset;
 
@@ -61,28 +61,37 @@ class CustomTaskListDecorationDrawer implements Listener {
 
 	private boolean useStrikethroughForCompleted;
 
+	private boolean synchronizationOverlaid;
+
+	private boolean focusedMode;
+
 	private final org.eclipse.jface.util.IPropertyChangeListener PROPERTY_LISTENER = new org.eclipse.jface.util.IPropertyChangeListener() {
 
 		public void propertyChange(org.eclipse.jface.util.PropertyChangeEvent event) {
 			if (event.getProperty().equals(ITasksUiPreferenceConstants.USE_STRIKETHROUGH_FOR_COMPLETED)) {
 				if (event.getNewValue() instanceof Boolean) {
 					useStrikethroughForCompleted = (Boolean) event.getNewValue();
-					taskListView.refresh();
+				}
+			} else if (event.getProperty().equals(ITasksUiPreferenceConstants.OVERLAYS_INCOMING_TIGHT)) {
+				if (event.getNewValue() instanceof Boolean) {
+					synchronizationOverlaid = (Boolean) event.getNewValue();
 				}
 			}
 		}
 	};
 
-	CustomTaskListDecorationDrawer(TaskListView taskListView, int activationImageOffset) {
-		this.taskListView = taskListView;
+	public CustomTaskListDecorationDrawer(int activationImageOffset, boolean focusedMode) {
 		this.activationImageOffset = activationImageOffset;
 		this.lastClippingArea = new Rectangle(0, 0, 0, 0);
 		this.tweakClipping = PlatformUtil.isPaintItemClippingRequired();
 		this.platformSpecificSquish = PlatformUtil.getTreeItemSquish();
-		this.taskListView.synchronizationOverlaid = TasksUiPlugin.getDefault().getPluginPreferences().getBoolean(
-				ITasksUiPreferenceConstants.OVERLAYS_INCOMING_TIGHT);
-		this.useStrikethroughForCompleted = TasksUiPlugin.getDefault().getPluginPreferences().getBoolean(
-				ITasksUiPreferenceConstants.USE_STRIKETHROUGH_FOR_COMPLETED);
+		this.synchronizationOverlaid = TasksUiPlugin.getDefault()
+				.getPreferenceStore()
+				.getBoolean(ITasksUiPreferenceConstants.OVERLAYS_INCOMING_TIGHT);
+		this.useStrikethroughForCompleted = TasksUiPlugin.getDefault()
+				.getPreferenceStore()
+				.getBoolean(ITasksUiPreferenceConstants.USE_STRIKETHROUGH_FOR_COMPLETED);
+		this.focusedMode = focusedMode;
 		TasksUiPlugin.getDefault().getPreferenceStore().addPropertyChangeListener(PROPERTY_LISTENER);
 	}
 
@@ -129,7 +138,7 @@ class CustomTaskListDecorationDrawer implements Listener {
 //					if (activationImage != null) {
 //						drawActivationImage(activationImageOffset, event, activationImage);
 //					}
-//					if (!this.taskListView.synchronizationOverlaid) {
+//					if (!this.synchronizationOverlaid) {
 //						if (data instanceof ITaskContainer) {
 //							drawSyncronizationImage((ITaskContainer) data, event);
 //						}
@@ -176,19 +185,18 @@ class CustomTaskListDecorationDrawer implements Listener {
 		Image image = null;
 		int offsetX = PlatformUtil.getIncomingImageOffset();
 		int offsetY = (event.height / 2) - 5;
-		if (taskListView.synchronizationOverlaid) {
+		if (synchronizationOverlaid) {
 			offsetX = event.x + 18 - platformSpecificSquish;
 			offsetY += 2;
 		}
 		if (element != null) {
 			if (element instanceof ITask) {
-				image = CommonImages.getImage(getSynchronizationImageDescriptor(element,
-						taskListView.synchronizationOverlaid));
+				image = CommonImages.getImage(getSynchronizationImageDescriptor(element, synchronizationOverlaid));
 			} else {
 				int imageOffset = 0;
 				if (!hideDecorationOnContainer(element, (TreeItem) event.item)
 						&& AbstractTaskListFilter.hasDescendantIncoming(element)) {
-					if (taskListView.synchronizationOverlaid) {
+					if (synchronizationOverlaid) {
 						image = CommonImages.getImage(CommonImages.OVERLAY_SYNC_OLD_INCOMMING);
 					} else {
 						image = CommonImages.getImage(CommonImages.OVERLAY_SYNC_INCOMMING);
@@ -197,7 +205,7 @@ class CustomTaskListDecorationDrawer implements Listener {
 					RepositoryQuery query = (RepositoryQuery) element;
 					if (query.getStatus() != null) {
 						image = CommonImages.getImage(CommonImages.OVERLAY_SYNC_WARNING);
-						if (taskListView.synchronizationOverlaid) {
+						if (synchronizationOverlaid) {
 							imageOffset = 11;
 						} else {
 							imageOffset = 3;
@@ -206,12 +214,12 @@ class CustomTaskListDecorationDrawer implements Listener {
 				}
 
 				int additionalSquish = 0;
-				if (platformSpecificSquish > 0 && taskListView.synchronizationOverlaid) {
+				if (platformSpecificSquish > 0 && synchronizationOverlaid) {
 					additionalSquish = platformSpecificSquish + 3;
 				} else if (platformSpecificSquish > 0) {
 					additionalSquish = platformSpecificSquish / 2;
 				}
-				if (taskListView.synchronizationOverlaid) {
+				if (synchronizationOverlaid) {
 					offsetX = 42 - imageOffset - additionalSquish;
 				} else {
 					offsetX = 24 - imageOffset - additionalSquish;
@@ -225,8 +233,10 @@ class CustomTaskListDecorationDrawer implements Listener {
 	}
 
 	private boolean hideDecorationOnContainer(ITaskContainer element, TreeItem treeItem) {
-		if (element instanceof UnmatchedTaskContainer) {
-			if (!taskListView.isFocusedMode()) {
+		if (element instanceof ScheduledTaskContainer) {
+			return true;
+		} else if (element instanceof UnmatchedTaskContainer) {
+			if (!focusedMode) {
 				return false;
 			} else if (AbstractTaskListFilter.hasDescendantIncoming(element)) {
 				return true;
@@ -238,7 +248,7 @@ class CustomTaskListDecorationDrawer implements Listener {
 			}
 		}
 
-		if (!taskListView.isFocusedMode()) {
+		if (focusedMode) {
 			return false;
 		} else if (element instanceof IRepositoryQuery || element instanceof TaskCategory) {
 			return treeItem.getExpanded();
@@ -304,6 +314,22 @@ class CustomTaskListDecorationDrawer implements Listener {
 
 	public void dispose() {
 		TasksUiPlugin.getDefault().getPreferenceStore().removePropertyChangeListener(PROPERTY_LISTENER);
+	}
+
+	public void setUseStrikethroughForCompleted(boolean useStrikethroughForCompleted) {
+		this.useStrikethroughForCompleted = useStrikethroughForCompleted;
+	}
+
+	public void setSynchronizationOverlaid(boolean synchronizationOverlaid) {
+		this.synchronizationOverlaid = synchronizationOverlaid;
+	}
+
+	public boolean isFocusedMode() {
+		return focusedMode;
+	}
+
+	public void setFocusedMode(boolean focusedMode) {
+		this.focusedMode = focusedMode;
 	}
 
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -12,6 +12,8 @@
 package org.eclipse.mylyn.internal.tasks.ui;
 
 import java.text.MessageFormat;
+import java.util.Date;
+import java.util.List;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -25,9 +27,11 @@ import org.eclipse.mylyn.internal.tasks.ui.util.TasksUiInternal;
 import org.eclipse.mylyn.tasks.core.AbstractRepositoryConnector;
 import org.eclipse.mylyn.tasks.core.ITask;
 import org.eclipse.mylyn.tasks.core.TaskRepository;
+import org.eclipse.mylyn.tasks.core.data.TaskAttribute;
 import org.eclipse.mylyn.tasks.core.data.TaskData;
 import org.eclipse.mylyn.tasks.ui.TasksUi;
 import org.eclipse.mylyn.tasks.ui.TasksUiUtil;
+import org.eclipse.mylyn.tasks.ui.editors.TaskEditor;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.PlatformUI;
 
@@ -49,14 +53,22 @@ public class OpenRepositoryTaskJob extends Job {
 
 	private TaskOpenListener listener;
 
+	private final long timestamp;
+
 	public OpenRepositoryTaskJob(String repositoryKind, String repositoryUrl, String taskId, String taskUrl,
 			IWorkbenchPage page) {
+		this(repositoryKind, repositoryUrl, taskId, taskUrl, 0, page);
+	}
+
+	public OpenRepositoryTaskJob(String repositoryKind, String repositoryUrl, String taskId, String taskUrl,
+			long timestamp, IWorkbenchPage page) {
 		super(MessageFormat.format(Messages.OpenRepositoryTaskJob_Opening_repository_task_X, taskId));
 
 		this.repositoryKind = repositoryKind;
 		this.taskId = taskId;
 		this.repositoryUrl = repositoryUrl;
 		this.taskUrl = taskUrl;
+		this.timestamp = timestamp;
 	}
 
 	/**
@@ -95,16 +107,35 @@ public class OpenRepositoryTaskJob extends Job {
 
 		AbstractRepositoryConnector connector = TasksUi.getRepositoryManager().getRepositoryConnector(repositoryKind);
 		try {
-			TaskData taskData = connector.getTaskData(repository, taskId, monitor);
+			final TaskData taskData = connector.getTaskData(repository, taskId, monitor);
 			if (taskData != null) {
 				task = TasksUi.getRepositoryModel().createTask(repository, taskData.getTaskId());
 				TasksUiPlugin.getTaskDataManager().putUpdatedTaskData(task, taskData, true);
 				PlatformUI.getWorkbench().getDisplay().asyncExec(new Runnable() {
 					public void run() {
-						boolean result = TasksUiUtil.openTask(task);
-						if (listener != null) {
-							if (result) {
-								listener.taskOpened(new TaskOpenEvent(repository, task, taskId));
+						TaskOpenEvent event = TasksUiInternal.openTask(task, taskId);
+						if (listener != null && event != null) {
+							listener.taskOpened(event);
+						}
+						if (timestamp != 0 && event != null) {
+							List<TaskAttribute> commentAttributes = taskData.getAttributeMapper().getAttributesByType(
+									taskData, TaskAttribute.TYPE_COMMENT);
+							if (commentAttributes.size() > 0) {
+								for (TaskAttribute commentAttribute : commentAttributes) {
+									TaskAttribute commentCreateDate = commentAttribute.getMappedAttribute(TaskAttribute.COMMENT_DATE);
+									if (commentCreateDate != null) {
+										Date dateValue = taskData.getAttributeMapper().getDateValue(commentCreateDate);
+										if (dateValue.getTime() < timestamp) {
+											continue;
+										}
+										TaskAttribute dn = commentAttribute.getMappedAttribute(TaskAttribute.COMMENT_NUMBER);
+										TaskEditor editor = (TaskEditor) event.getEditor();
+										if (dn != null) {
+											editor.selectReveal(TaskAttribute.PREFIX_COMMENT + dn.getValue());
+										}
+										break;
+									}
+								}
 							}
 						}
 					}

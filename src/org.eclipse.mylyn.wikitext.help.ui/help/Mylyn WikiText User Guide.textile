@@ -248,6 +248,7 @@ The @markupLanguage@ attribute accepts any of the following values (depending on
 | @failOnValidationWarning@ | Indicate if validation warnings should cause a build failure. @true@ or @false@, default is false.  |
 | @overwrite@ | Indicate if target files should be overwritten even if the target document is newer than the source document. @true@ or @false@, default is false. |
 | @sourceEncoding@ | Indicate source file encoding.  Example: @UTF-8@.  Defaults to the platform default encoding as defined by @java.nio.charset.Charset.defaultCharset()@.  See the "IANA Charset Registry":http://www.iana.org/assignments/character-sets for valid charset names. |
+| @internalLinkPattern@ | The pattern to use when creating hyperlink targets for internal links. The pattern is implementation-specific, however implementations are encouraged to use {@link MessageFormat}, where the 0th parameter is the internal link.  Example: @/wiki/{0}@ would cause internal links to page @Help@ to be rendered as @/wiki/Help@ |
 
 *wikitext-to-html and wikitext-to-eclipse-help task options*
 
@@ -262,6 +263,9 @@ The @markupLanguage@ attribute accepts any of the following values (depending on
 | @overwrite@ | Indicate if output files should be overwritten.  The default is false.  When false output files are only overwritten if the output file timestamp is older than the markup source file. |
 | @helpPrefix@ | The prefix to URLs in the toc.xml, typically the relative path from the plugin to the help files (wikitext-to-eclipse-help only). For example, if the help file is in 'help/index.html' then the help prefix would be 'help' |
 | @defaultAbsoluteLinkTarget@ | Specify that hyperlinks to external resources (@<a href@) should use a @target@ attribute to cause them to be opened in a seperate window or tab.  The value specified becomes the value of the @target@ attribute on anchors where the href is an absolute URL. |
+| @xhtmlStrict@ | Indicate if the builder should attempt to conform to strict XHTML rules. The default is false. |
+| @emitDoctype@ | Indicate if the builder should emit a DTD doctype declaration.  The default is true. |
+| @htmlDoctype@ | The doctype to use.  Defaults to @<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">@. |
 
 *stylesheet*
 
@@ -373,6 +377,77 @@ bc.
 		<fileset dir="help" includes="**/*.textile"/>
 	</wikitext-to-dita>
 
+h3. MediaWiki To Eclipse Help
+
+Mylyn WikiText provides a means to generate Eclipse Help content from multiple MediaWiki pages, directly from the wiki.  This feature takes into account cross-page hyperlinks, template expansion and downloading images that appear in the page.  To use this feature use the @<mediawiki-to-eclipse-help>@ Ant task as follows:
+
+bc.. 
+    	<mediawiki-to-eclipse-help
+    		wikiBaseUrl="http://wiki.eclipse.org"
+			validate="true"
+			failonvalidationerror="true"
+			prependImagePrefix="images"
+			formatoutput="true"
+			defaultAbsoluteLinkTarget="mylyn_external"
+    		dest="${basedir}"
+    		title="Mylyn"
+    		generateUnifiedToc="false">
+    		<path name="Mylyn/User_Guide" title="Mylyn User Guide" generateToc="true"/>
+    		<path name="Mylyn/FAQ" title="Mylyn FAQ" generateToc="true"/>
+			<stylesheet url="book.css"/>
+    		<pageAppendum>
+
+= Updating This Document =
+
+This document is maintained in a collaborative wiki.  If you wish to update or modify this document please visit 
+{url}</pageAppendum>
+    	</mediawiki-to-eclipse-help>
+    	
+p. The following describes the Ant task and its configurable options:
+
+
+|_. Option |_. Usage |
+| @dest@ | The destination folder into which generated files should be placed.  Typically this is the root folder of your bundle (plug-in) project. |
+| @wikiBaseUrl@ | The base URL of the wiki.  Example: @http://wiki.eclipse.org@ |
+| @defaultAbsolutLinkTarget@ | A default target attribute for links that have absolute (not relative) urls. By default this value is null. Setting this value will cause all HTML anchors to have their target attribute set accordingly. |
+| @emitDoctype@ | Indicate if the resulting HTML should include a DTD.  The default value is true. |
+| @fetchImages@ | Indicate if images should be downloaded from the wiki. The default value is true. |
+| @formatOutput@ | Indicate if generated HTML files should be formatted.  The default value is false.  If your generated files are to be stored in a version control system it's recommended to enable this option. |
+| @generateUnifiedToc@ | Indicate if a unified Eclipse help table of contents should be generated.  Defaults to true. |
+| @helpPrefix@ | The prefix to prepend to table of contents references if the help content is not generated into the root of your plug-in bundle.  Defaults to null. |
+| @htmlDoctype@ | The doctype to use when generating HTML.  Defaults to @<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">@ |
+| @htmlFilenameFormat@ | The filename format to use when generating output filenames.  Defaults to @$1.html@ where $1 is the name of the page. | 
+| @linkRel@ | The 'rel' value for HTML links. If specified the value is applied to all links generated by the builder. The default value is null.  Setting this value to "nofollow" is recommended for rendering HTML in areas where users may add links, for example in a blog comment. |
+| @multipleOutputFiles@ | Indicate if wiki pages should result in multiple output files, split at top-level headings.  Defaults to true. |
+| @navigationImages@ | Indicate if navigation (next/previous) links should use images.  Defaults to true. |
+| @prependImagePrefix@ | The folder name to prepend to image references.  Defaults to @"images"@. |
+| @suppressBuiltInCssStyles@ |  Indicate if default built-in CSS styles should be suppressed. Built-in styles are styles that are emitted to create the desired visual effect when rendering certain types of elements, such as warnings or infos.  Defaults to false. |
+| @templateExcludes@ | Indicate MediaWiki template names to exclude.  A comma-delimited list of names, may include '*' wildcards.  Defaults to null.  Example: @bug, navigationHeader@ |
+| @title@ | The title of the generated help content. |
+| @tocFile@ | The filename to use for the generated unified table of contents.  Defaults to @toc.xml@ in the @dest@ folder. |
+| @useInlineCssStyles@ | Indicate if built-in styles should be generated inline or in the document head.  Defaults to true, resulting in inline styles. |
+| @xhtmlStrict@ | Indicate if the generated output should attempt to conform to XHTML strict.  Defaults to false. |
+
+One or more @<path>@ tags must be nested, with attributes as follows:
+
+|_. Option |_. Usage |
+| @name@ | The name of the wiki page, which is typically the URL following the @wikiBaseUrl@. For example, 'Mylyn/FAQ' |
+| @title@ | The title of the page.  If unspecified, defaults to the path @name@. |
+| @generateToc@ | Indicate if an independent Eclipse help table of contents should be generated for this path. Defaults to false. |
+| @includeInUnifiedToc@ | Indicate if this path should be included in the unified table of contents.  Defaults to true. |
+| @tocParentName@ | When specified causes the path to appear nested under another path in the generated unified table of contents.  If unspecified this path will generate table of contents at the top level. Defaults to null. |
+
+A single @<pageAppendum>@ tag can be nested, in which content may be specified that is appended to each wiki page during the generation process.  A token @{url}@ is replaced with the original URL to the wiki page.  In this manner users can be directed to the source location for editing the document.  @<pageAppendum>@ may also be used to append arbitrary content, such as a copyright notice.
+
+*Table Of Contents*
+
+When using @<mediawiki-to-eclipse-help>@ there are two modes of operation:
+ 
+# either have the Ant task generate a table of contents containing links to headings from all generated files, or 
+# generate an independant table of contents for each wiki path and link them together by writing a master table of contents by hand and using @<link>@ tags.
+
+The first option requires less effort, but results in less control over the output.  The second option is more flexible, but requires writing a master table of contents. 
+
 h2. Ant Examples
 
 See "the examples":examples for example Ant build scripts.
@@ -468,7 +543,7 @@ bc.
 To achieve this effect with Textile markup use syntax as follows:
 
 bc. 
-!{width=80%}images/foo.png!
+!{width:80%}images/foo.png!
 
 More information about image scaling in DocBook is available at  "imagedata: Scaling":http://www.docbook.org/tdg/en/html/imagedata-x.html.
 
@@ -551,6 +626,14 @@ When such a proposal is selected the variables are displayed with a surrounding 
 
 Note that while editing a template the standard undo/redo functionality is still available to you.
 
+h4. Creating Custom Templates
+
+Custom templates can be created under *Preferences -> General -> Editors -> Text Editors -> WikiText -> Templates*:
+
+!images/editor-preferences-templates.png!
+
+Templates may be large, such as a document outline, or small, such as a common phrase or token.
+
 h3. Selection and Content Assist
 
 Content assist may be invoked with selected text.  To do so, select text using the mouse or keyboard, and then press *CTRL+SPACE*.  Content assist is activated with the current selection.
@@ -577,7 +660,7 @@ Also see "Outline":#Outline.
 
 h1. Preferences
 
-WikiText editor preferences may be configured via the Eclipse preferences dialog.
+WikiText editor preferences may be configured via the Eclipse preferences dialog.  Preferences can be found under *General -> Editors -> Text Editors -> WikiText*.
 
 h2. Editor Preferences
 
@@ -595,6 +678,14 @@ The following CSS styles are recognized:
 | @font-size@ | percentage, named size, or absolute size (pt or px) |
 | @text-decoration@ | none, line-through, underline |
 | @vertical-align@ | super, sub |
+
+h3. Font Preferences
+
+The WikiText editor default fonts can be configured in the Eclipse preferences dialog under *General -> Appearance -> Colors and Fonts*:
+
+!images/editor-preferences-fonts.png!
+
+The *Text Font* is the default font used by the WikiText editor for displaying normal text.  The *Monospace Font* is the default font used for displaying text that is teletype, preformatted or code.  CSS styles are applied to these default fonts based on the "Editor Preferences":#EditorPreferences.
 
 h2. Rendering Appearance
 

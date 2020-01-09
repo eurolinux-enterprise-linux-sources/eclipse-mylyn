@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -87,7 +87,8 @@ public class TaskEditorNotesPart extends AbstractTaskEditorPart {
 		composite.setLayout(EditorUtil.createSectionClientLayout());
 
 		noteEditor = new SourceViewer(composite, null, SWT.FLAT | SWT.MULTI | SWT.WRAP | SWT.V_SCROLL);
-		noteEditor.configure(new RepositoryTextViewerConfiguration(getModel().getTaskRepository(), true));
+		noteEditor.configure(new RepositoryTextViewerConfiguration(getModel().getTaskRepository(),
+				getModel().getTask(), true));
 		CommonTextSupport textSupport = (CommonTextSupport) getTaskEditorPage().getAdapter(CommonTextSupport.class);
 		if (textSupport != null) {
 			textSupport.configure(noteEditor, new Document(this.value), true);

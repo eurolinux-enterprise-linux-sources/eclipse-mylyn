@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -31,7 +31,7 @@ import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.mylyn.commons.core.StatusHandler;
-import org.eclipse.mylyn.internal.provisional.tasks.bugs.IProvider;
+import org.eclipse.mylyn.tasks.bugs.IProvider;
 import org.eclipse.osgi.util.NLS;
 import org.eclipse.ui.branding.IBundleGroupConstants;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
@@ -311,7 +311,7 @@ public class SupportProviderManager {
 							IStatus.WARNING,
 							TasksBugsPlugin.ID_PLUGIN,
 							NLS.bind(
-									"Mapping contributed by {0} with namespace ''{1}'' ignored, invalid product id ''{1}'' specified", //$NON-NLS-1$
+									"Mapping contributed by {0} with namespace ''{1}'' ignored, unkown product id ''{1}'' specified", //$NON-NLS-1$
 									new String[] { element.getNamespaceIdentifier(), namespace, productId })));
 					return null;
 				}
@@ -332,7 +332,7 @@ public class SupportProviderManager {
 		IProvider provider = getProvider(providerId);
 		if (provider == null) {
 			StatusHandler.log(new Status(IStatus.WARNING, TasksBugsPlugin.ID_PLUGIN, NLS.bind(
-					"Product contributed by {0} with id ''{1}'' ignored, product id ''{2}'' is invalid", //$NON-NLS-1$
+					"Product contributed by {0} with id ''{1}'' ignored, unknown provider id ''{2}'' specified", //$NON-NLS-1$
 					new String[] { element.getNamespaceIdentifier(), id, providerId })));
 			return null;
 		}

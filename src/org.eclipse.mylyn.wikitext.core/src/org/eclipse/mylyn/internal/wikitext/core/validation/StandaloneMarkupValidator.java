@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2008 David Green and others.
+ * Copyright (c) 2007, 2009 David Green and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -54,7 +54,6 @@ public class StandaloneMarkupValidator {
 	 * 
 	 * @param markupLanguage
 	 *            the markup language for which a validator is desired
-	 * 
 	 * @return the validator
 	 */
 	public static StandaloneMarkupValidator getValidator(String markupLanguage) {
@@ -102,10 +101,7 @@ public class StandaloneMarkupValidator {
 		if (length == 0 || rules.isEmpty()) {
 			return Collections.emptyList();
 		}
-		int end = offset + length;
-		if (end > markup.length()) {
-			end = markup.length();
-		}
+
 		List<ValidationProblem> problems = new ArrayList<ValidationProblem>();
 
 		for (ValidationRule rule : rules) {

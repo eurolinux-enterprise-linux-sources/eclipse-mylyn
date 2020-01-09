@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Frank Becker and others.
+ * Copyright (c) 2004, 2010 Frank Becker and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -46,7 +46,6 @@ public class BugzillaTaskDataHandlerTest extends TestCase {
 		TaskData taskData = BugzillaFixture.current().createTask(PrivilegeLevel.USER, "test summary for clone",
 				"test description for clone");
 		taskData.getRoot().getMappedAttribute(TaskAttribute.PRIORITY).setValue("P5");
-		//BugzillaFixture.current().submitTask(taskData, client);
 		ITaskMapping mapping = connector.getTaskMapping(taskData);
 		DefaultTaskMapping taskSelection = new DefaultTaskMapping();
 		taskSelection.setDescription("Test description");

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2008 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -118,7 +118,8 @@ public class TaskRepositoriesExternalizer {
 			return contentHandler.getRepositories();
 		} catch (Throwable e) {
 			file.renameTo(new File(file.getAbsolutePath() + "-save")); //$NON-NLS-1$
-			StatusHandler.log(new Status(IStatus.ERROR, ITasksCoreConstants.ID_PLUGIN, "Error reading context file", e)); //$NON-NLS-1$
+			StatusHandler.log(new Status(IStatus.ERROR, ITasksCoreConstants.ID_PLUGIN,
+					"Error reading task repositories", e)); //$NON-NLS-1$
 			return null;
 		} finally {
 			if (inputStream != null) {
@@ -126,7 +127,7 @@ public class TaskRepositoriesExternalizer {
 					inputStream.close();
 				} catch (IOException e) {
 					StatusHandler.log(new Status(IStatus.ERROR, ITasksCoreConstants.ID_PLUGIN,
-							"Error closing context file", e)); //$NON-NLS-1$
+							"Error closing task repositories file", e)); //$NON-NLS-1$
 				}
 			}
 		}

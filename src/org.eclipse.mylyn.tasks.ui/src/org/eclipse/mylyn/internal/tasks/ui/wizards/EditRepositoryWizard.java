@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -70,8 +70,6 @@ public class EditRepositoryWizard extends Wizard implements INewWizard {
 					// should not get here
 				}
 			}
-
-			repository.flushAuthenticationCredentials();
 
 			if (!repository.getConnectorKind().equals(LocalRepositoryConnector.CONNECTOR_KIND)) {
 				repository.setRepositoryUrl(newUrl);

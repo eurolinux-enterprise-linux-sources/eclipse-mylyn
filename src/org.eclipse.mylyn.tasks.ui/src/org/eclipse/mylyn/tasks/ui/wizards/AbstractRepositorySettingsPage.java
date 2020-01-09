@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others. 
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others. 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -30,6 +30,7 @@ import org.eclipse.jface.layout.GridDataFactory;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.preference.PreferenceDialog;
 import org.eclipse.jface.preference.StringFieldEditor;
+import org.eclipse.jface.wizard.IWizardContainer;
 import org.eclipse.mylyn.commons.core.StatusHandler;
 import org.eclipse.mylyn.commons.net.AuthenticationCredentials;
 import org.eclipse.mylyn.commons.net.AuthenticationType;
@@ -1277,7 +1278,12 @@ public abstract class AbstractRepositorySettingsPage extends AbstractTaskReposit
 		return errorMessage == null && super.isPageComplete();
 	}
 
-	private boolean isMissingCredentials() {
+	/**
+	 * Returns true, if credentials are incomplete. Clients may override this method.
+	 * 
+	 * @since 3.4
+	 */
+	protected boolean isMissingCredentials() {
 		return repositoryUserNameEditor.getStringValue().trim().equals("") //$NON-NLS-1$
 				|| repositoryPasswordEditor.getStringValue().trim().equals(""); //$NON-NLS-1$
 	}
@@ -1504,6 +1510,21 @@ public abstract class AbstractRepositorySettingsPage extends AbstractTaskReposit
 
 	public void setNeedsValidation(boolean needsValidation) {
 		this.needsValidation = needsValidation;
+	}
+
+	/**
+	 * Returns whether this page can be validated or not.
+	 * <p>
+	 * This information is typically used by the wizard to set the enablement of the validation UI affordance.
+	 * </p>
+	 * 
+	 * @return <code>true</code> if this page can be validated, and <code>false</code> otherwise
+	 * @see #needsValidation()
+	 * @see IWizardContainer#updateButtons()
+	 * @since 3.4
+	 */
+	public boolean canValidate() {
+		return true;
 	}
 
 	/**

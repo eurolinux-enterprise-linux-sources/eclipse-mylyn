@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2009 Steffen Pingel and others.
+ * Copyright (c) 2006, 2010 Steffen Pingel and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -25,6 +25,7 @@ import org.apache.commons.httpclient.cookie.CookiePolicy;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.Platform;
+import org.eclipse.mylyn.commons.core.CoreUtil;
 import org.eclipse.mylyn.commons.net.AbstractWebLocation;
 import org.eclipse.mylyn.commons.net.AuthenticationCredentials;
 import org.eclipse.mylyn.commons.net.WebUtil;
@@ -113,7 +114,7 @@ public abstract class AbstractTracClient implements ITracClient {
 				throw new TracLoginException();
 			}
 		} finally {
-			post.releaseConnection();
+			WebUtil.releaseConnection(post, monitor);
 		}
 	}
 
@@ -139,6 +140,10 @@ public abstract class AbstractTracClient implements ITracClient {
 			if (LOGIN_COOKIE_NAME.equals(cookie.getName())) {
 				return;
 			}
+		}
+
+		if (CoreUtil.TEST_MODE) {
+			System.err.println(" Authentication failed: " + httpClient.getState()); //$NON-NLS-1$
 		}
 
 		throw new TracLoginException();

@@ -2,26 +2,26 @@
 %global debug_package %{nil}
 %endif
 
-%define eclipse_base        %{_libdir}/eclipse
-%define install_loc         %{eclipse_base}/dropins
+%global eclipse_base        %{_libdir}/eclipse
+%global install_loc         %{eclipse_base}/dropins
 # Taken from update site so we match upstream
 # http://download.eclipse.org/tools/mylyn/update/e3.5/
-%define qualifier           v20100222-0100-e3x
+%global qualifier           v20100916-0100-e3x
 
 # Prevent brp-java-repack-jars from being run.  Spaces in the paths of
 # the help content are broken by it.
-%define __jar_repack 0
+%global __jar_repack 0
 
 Name: eclipse-mylyn
 Summary: Mylyn is a task-focused UI for Eclipse
-Version: 3.3.2
-Release: 4.5%{?dist}
+Version: 3.4.2
+Release: 9%{?dist}
 License: EPL and ASL 2.0
 URL: http://www.eclipse.org/mylyn
 
 # mkdir temp && cd temp
 # sh fetch-mylyn.sh
-Source0: org.eclipse.mylyn-R_3_3_2-fetched-src.tar.bz2
+Source0: org.eclipse.mylyn-R_3_4_2-fetched-src.tar.bz2
 Source1: fetch-mylyn.sh
 
 # This is a dependency declared by the Orbit xmlrpc JAR.  We don't use
@@ -33,6 +33,10 @@ Patch0: %{name}-nojaxb.patch
 # This patch is not suitable for upstream.
 Patch1: %{name}-splitxmlrpc.patch
 Patch2: %{name}-wikitext_builddoc.patch
+Patch3: %{name}-nosoap.patch
+Patch4: %{name}-nocdtversion.patch
+Patch5: %{name}-clean-sdk.patch
+Patch6: fix_mediawiki_image_fetch.patch
 
 BuildRoot:  %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
@@ -44,7 +48,7 @@ ExclusiveArch: i686 x86_64
 BuildArch: noarch
 %endif
 
-BuildRequires: eclipse-pde >= 1:3.4.0
+BuildRequires: eclipse-pde >= 1:3.6.0
 BuildRequires: eclipse-cdt
 BuildRequires: jakarta-commons-lang >= 2.3-2.3
 BuildRequires: ws-commons-util >= 1.0.1-5
@@ -53,7 +57,7 @@ BuildRequires: xmlrpc3-common >= 3.0-2.8
 BuildRequires: ws-jaxme >= 0.5.1-2.4
 BuildRequires: rome
 BuildRequires: jdom >= 1.0-5.5
-Requires: eclipse-platform >= 1:3.4.0
+Requires: eclipse-platform >= 1:3.6.0
 Requires: jakarta-commons-lang >= 2.3-2.3
 Requires: ws-commons-util >= 1.0.1-5
 Requires: xmlrpc3-client >= 3.0-2.8
@@ -126,34 +130,47 @@ Group: Development/Tools
 
 %description wikitext
 Enables parsing and display of lightweight markup (wiki text).  Extends
-the Mylyn task editor to create a markup-aware editor.
+the Mylyn task editor to create a markup-aware editor. Includes WikiText
+SDK
 
 %package  cdt
 Summary:  Mylyn Bridge:  C/C++ Development
 Requires: %{name} = %{version}-%{release}
 Requires: eclipse-cdt
 Group: Development/Tools
-Provides: eclipse-cdt-mylyn = 1:6.0.1-5.fc13
-Obsoletes: eclipse-cdt-mylyn <= 1:6.0.1-5.fc13
+Provides: eclipse-cdt-mylyn = 2:1.0.0-1.fc12
+Obsoletes: eclipse-cdt-mylyn < 2:1.0.0
 
 %description cdt
 Mylyn Task-Focused UI extensions for CDT.  Provides focusing of C/C++
 element views and editors.
 
+#%package sdk
+#Summary: Mylyn SDK
+#Requires: %{name} = %{version}-%{release}
+#Group: Development/Tools
+#
+#%description sdk
+#SDK for Mylyn project.
+
+
 %prep
 %setup -q -n org.eclipse.mylyn
 
-# The tests have dependencies we don't need/want/have
+# The tests and sdk have dependencies we don't need/want/have
+# Save the wikitext tests for now
+mv org.eclipse.mylyn.wikitext.tests backup
 rm -rf *tests*
+mv backup org.eclipse.mylyn.wikitext.tests
 
 mkdir orbitDeps
 pushd orbitDeps
 ln -s %{_javadir}/commons-lang.jar org.apache.commons.lang_2.4.0.jar
 ln -s %{_javadir}/commons-logging-api.jar org.apache.commons.logging.api_1.0.4.jar
-ln -s %{_javadir}/xmlrpc3-client-3.0.jar org.apache.xmlrpc.client_3.0.0.v20080530-1550.jar
-ln -s %{_javadir}/xmlrpc3-common-3.0.jar org.apache.xmlrpc.common_3.0.0.v20080530-1550.jar
-ln -s %{_javadir}/ws-commons-util-1.0.1.jar org.apache.ws.commons.util_1.0.0.v20080530-1550.jar
-ln -s %{_javadir}/jdom.jar org.jdom_1.0.0.v200806100616.jar
+ln -s %{_javadir}/xmlrpc3-client.jar
+ln -s %{_javadir}/xmlrpc3-common.jar
+ln -s %{_javadir}/ws-commons-util.jar org.apache.ws.commons.util_1.0.0.v20080530-1550.jar
+ln -s %{_javadir}/jdom.jar org.jdom_1.1.1.v200907230023.jar
 ln -s %{_javadir}/rome-0.9.jar com.sun.syndication_0.9.0.v200803061811.jar
 ln -s %{_javadir}/jaxme/jaxmeapi.jar javax.xml.bind.jar
 popd
@@ -172,6 +189,10 @@ popd
 %patch0
 %patch1
 %patch2
+%patch3
+%patch4 -p1
+%patch5
+%patch6 -b .sav
 
 sed -i 's|bundle-version="2.3.0"|bundle-version="[2.3.0,3.0.0)"|g' org.eclipse.mylyn.commons.net/META-INF/MANIFEST.MF
 
@@ -181,6 +202,10 @@ find -name feature.xml |
   done
 
 %build
+%{eclipse_base}/buildscripts/pdebuild -f org.eclipse.mylyn.commons \
+ -a "-DjavacSource=1.5 -DjavacTarget=1.5 -DforceContextQualifier=%{qualifier} -DmylynQualifier=%{qualifier}" \
+ -j -DJ2SE-1.5=%{_jvmdir}/java/jre/lib/rt.jar \
+ -o `pwd`/orbitDeps -d "cdt rse"
 %{eclipse_base}/buildscripts/pdebuild -f org.eclipse.mylyn_feature \
  -a "-DjavacSource=1.5 -DjavacTarget=1.5 -DforceContextQualifier=%{qualifier} -DmylynQualifier=%{qualifier}" \
  -j -DJ2SE-1.5=%{_jvmdir}/java/jre/lib/rt.jar \
@@ -220,22 +245,34 @@ find -name feature.xml |
 %{eclipse_base}/buildscripts/pdebuild -f org.eclipse.mylyn.wikitext_feature \
  -a "-DjavacSource=1.5 -DjavacTarget=1.5 -DforceContextQualifier=%{qualifier} -DmylynQualifier=%{qualifier}" \
  -j -DJ2SE-1.5=%{_jvmdir}/java/jre/lib/rt.jar \
- -o `pwd`/orbitDeps
+ -o `pwd`/orbitDeps 
 %{eclipse_base}/buildscripts/pdebuild -f org.eclipse.cdt.mylyn \
  -a "-DjavacSource=1.5 -DjavacTarget=1.5 -DforceContextQualifier=%{qualifier} -DmylynQualifier=%{qualifier}" \
  -j -DJ2SE-1.5=%{_jvmdir}/java/jre/lib/rt.jar \
  -o `pwd`/orbitDeps -d "cdt"
+%{eclipse_base}/buildscripts/pdebuild -f org.eclipse.mylyn.wikitext.sdk \
+ -a "-DindividualSourceBundles=true -DjavacSource=1.5 -DexportSource=true -DjavacTarget=1.5 -DforceContextQualifier=%{qualifier} -DmylynQualifier=%{qualifier}" \
+ -j -DJ2SE-1.5=%{_jvmdir}/java/jre/lib/rt.jar \
+ -o `pwd`/orbitDeps -d "rse cdt"
+#%{eclipse_base}/buildscripts/pdebuild -f org.eclipse.mylyn.sdk_feature \
+# -a "-DindividualSourceBundles=true -DjavacSource=1.5 -DexportSource=true -DjavacTarget=1.5 -DforceContextQualifier=%{qualifier} -DmylynQualifier=%{qualifier}" \
+# -j -DJ2SE-1.5=%{_jvmdir}/java/jre/lib/rt.jar \
+# -o `pwd`/orbitDeps -d "cdt"
+
 
 %install
 rm -rf %{buildroot}
-install -d -m 755 $RPM_BUILD_ROOT%{install_loc}
+install -d -m 755 $RPM_BUILD_ROOT%{_datadir}/eclipse
 install -d -m 755 $RPM_BUILD_ROOT%{install_loc}/mylyn
 install -d -m 755 $RPM_BUILD_ROOT%{install_loc}/mylyn-java
 install -d -m 755 $RPM_BUILD_ROOT%{install_loc}/mylyn-pde
 install -d -m 755 $RPM_BUILD_ROOT%{install_loc}/mylyn-trac
 install -d -m 755 $RPM_BUILD_ROOT%{install_loc}/mylyn-webtasks
 install -d -m 755 $RPM_BUILD_ROOT%{install_loc}/mylyn-wikitext
+#install -d -m 755 $RPM_BUILD_ROOT%{install_loc}/mylyn-sdk
 
+unzip -q -o -d $RPM_BUILD_ROOT%{install_loc}/mylyn \
+ build/rpmBuild/org.eclipse.mylyn.commons.zip
 unzip -q -o -d $RPM_BUILD_ROOT%{install_loc}/mylyn \
  build/rpmBuild/org.eclipse.mylyn_feature.zip
 unzip -q -o -d $RPM_BUILD_ROOT%{install_loc}/mylyn \
@@ -255,15 +292,23 @@ unzip -q -o -d $RPM_BUILD_ROOT%{install_loc}/mylyn-pde \
 unzip -q -o -d $RPM_BUILD_ROOT%{install_loc}/mylyn-webtasks \
  build/rpmBuild/org.eclipse.mylyn.web.tasks_feature.zip
 unzip -q -o -d $RPM_BUILD_ROOT%{install_loc}/mylyn-wikitext \
- build/rpmBuild/org.eclipse.mylyn.wikitext_feature.zip
+ build/rpmBuild/org.eclipse.mylyn.wikitext.sdk.zip
 unzip -q -o -d $RPM_BUILD_ROOT%{install_loc}/mylyn-cdt \
  build/rpmBuild/org.eclipse.cdt.mylyn.zip
+#unzip -q -o -d $RPM_BUILD_ROOT%{install_loc}/mylyn-sdk \
+# build/rpmBuild/org.eclipse.mylyn.sdk_feature.zip
 
 pushd $RPM_BUILD_ROOT%{install_loc}/mylyn/eclipse/plugins
 rm org.apache.commons.codec_*.jar
 rm org.apache.commons.httpclient_3.1.0.v20080605-1935.jar
 rm org.apache.commons.lang_*.jar
-rm org.apache.commons.logging_1.0.4.v20080605-1930.jar
+rm org.apache.commons.logging_*.jar
+rm javax.xml.bind_2.0.0*.jar
+rm org.apache.ws.commons.util_1.0.0.%{qualifier}.jar
+rm org.apache.xmlrpc_3.0.0.%{qualifier}.jar
+ln -s %{_javadir}/ws-commons-util.jar org.apache.ws.commons.util_1.0.0.v20080530-1550.jar
+ln -s %{_javadir}/xmlrpc3-client.jar org.apache.xmlrpc.client_3.0.0.v20080530-1550.jar
+ln -s %{_javadir}/xmlrpc3-common.jar
 ln -s %{_javadir}/commons-lang.jar org.apache.commons.lang_2.4.0.jar
 ln -s %{_javadir}/commons-logging-api.jar org.apache.commons.logging.api_1.0.4.jar
 popd
@@ -271,26 +316,22 @@ popd
 pushd $RPM_BUILD_ROOT%{install_loc}/mylyn-trac/eclipse/plugins
 rm org.apache.ws.commons.util_1.0.0.%{qualifier}.jar
 rm org.apache.xmlrpc_3.0.0.%{qualifier}.jar
-ln -s %{_javadir}/xmlrpc3-client-3.0.jar org.apache.xmlrpc.client_3.0.0.v20080530-1550.jar
-ln -s %{_javadir}/xmlrpc3-common-3.0.jar org.apache.xmlrpc.common_3.0.0.v20080530-1550.jar
-ln -s %{_javadir}/ws-commons-util-1.0.1.jar org.apache.ws.commons.util_1.0.0.v20080530-1550.jar
 ln -s %{_javadir}/jaxme/jaxmeapi.jar javax.xml.bind.jar
 popd
 
 #Do not use qualifier value for dependencies to not be forced to rebuild them for
 # every mylyn
 pushd $RPM_BUILD_ROOT%{install_loc}/mylyn-trac/eclipse/features
-	find -name feature.xml |
-	while read f; do
+find -name feature.xml | while read f; do
       sed -i "s/3.0.0.%{qualifier}/3.0.0.qualifier/g" $f
       sed -i "s/1.0.0.%{qualifier}/1.0.0.qualifier/g" $f
-  	done
+done
 popd
 
 pushd $RPM_BUILD_ROOT%{install_loc}/mylyn-webtasks/eclipse/plugins
-rm org.jdom_*.jar
+rm org.jdom_1.1.1.v200907230023.jar
 rm com.sun.syndication_0.9.0.v200803061811.jar
-ln -s %{_javadir}/jdom.jar org.jdom_1.0.0.v200806100616.jar
+ln -s %{_javadir}/jdom.jar org.jdom_1.1.1.v200907230023.jar
 ln -s %{_javadir}/rome-0.9.jar com.sun.syndication_0.9.0.v200803061811.jar
 popd
 
@@ -338,7 +379,62 @@ rm -rf %{buildroot}
 %{install_loc}/mylyn
 # FIXME:  add the doc files back
 
+#%files
+#%defattr(-,root,root,-)
+#%{install_loc}/mylyn-sdk
+
 %changelog
+* Thu Feb 3 2011 Chris Aniszczyk <zx@redhat.com> 3.4.2-9
+- Fix incorrect install_loc path.
+- Resolves: rhbz#673174.
+
+* Mon Jan 17 2011 Andrew Overholt <overholt@redhat.com> 3.4.2-8
+- Add back missing changelog entries.
+- Fix mixed tabs and spaces.
+
+* Mon Jan 17 2011 Andrew Overholt <overholt@redhat.com> 3.4.2-7
+- Fix qualifier to match upstream.
+- Resolves:  rhbz#669819.
+
+* Fri Jan 14 2011 Andrew Overholt <overholt@redhat.com> 3.4.2-6
+- Put back in %%{_libdir} due to multilib issues.
+
+* Thu Jan 13 2011 Chris Aniszczyk <zx@redhat.com> 3.4.2-5
+- Fix symlink to updated jdom 1.1.1 jar.
+
+* Wed Jan 5 2011 Alexander Kurtakov <akurtako@redhat.com> 3.4.2-4
+- Fix symlink to non-existing versioned jar.
+
+* Tue Dec 7 2010 Severin Gehwolf <sgehwolf@redhat.com> 3.4.2-3
+- Really fix FTBFS.
+
+* Tue Dec 7 2010 Severin Gehwolf <sgehwolf@redhat.com> 3.4.2-2
+- Fix FTBFS RH Bz #660784
+
+* Fri Oct 8 2010 Chris Aniszczyk <zx@redhat.com> 3.4.2-1
+- Update to 3.4.2.
+
+* Wed Sep 1 2010 Jeff Johnston <jjohnstn@redhat.com> 3.4.1-3
+- Fix obsoletes/provides for eclipse-cdt-mylyn using an epoch of 2.
+
+* Wed Sep 1 2010 Alexander Kurtakov <akurtako@redhat.com> 3.4.1-2
+- Backport patch for wikitext to work with Fedora wiki.
+
+* Tue Aug 31 2010 Alexander Kurtakov <akurtako@redhat.com> 3.4.1-1
+- Update to 3.4.1.
+
+* Tue Jul 27 2010 Charley Wang <chwang@redhat.com> 3.4.0-4
+- Add Wikitext SDK to eclipse-mylyn
+
+* Wed Jul 21 2010 Charley Wang <chwang@redhat.com> 3.4.0-3
+- Relax cdt requires, remove extraneous links, fix xmlrpc split
+
+* Thu Jul 15 2010 Charley Wang <chwang@redhat.com> 3.4.0-2
+- Add required jar links to mylyn dropins directory
+
+* Wed Jul 14 2010 Charley Wang <chwang@redhat.com> 3.4.0-1
+- Update to 3.4.0. Add mylyn-commons feature, remove commons.soap
+
 * Wed Mar 24 2010 Alexander Kurtakov <jjohnstn@redhat.com> 3.3.2-4.5
 - Resolves: #557613
 - Install into %%{_libdir}/eclipse/dropins now that we are no longer noarch.
@@ -354,6 +450,24 @@ rm -rf %{buildroot}
 
 * Tue Mar 23 2010 Alexander Kurtakov <akurtako@redhat.com> 3.3.2-4.1
 - Rebase to 3.3.2.
+
+* Wed Mar 3 2010 Alexander Kurtakov <akurtako@redhat.com> 3.3.2-4
+- Relax bundle version requires for commons-lang.
+
+* Thu Feb 25 2010 Alexander Kurtakov <akurtako@redhat.com> 3.3.2-3
+- Really update to 3.3.2.
+
+* Thu Feb 25 2010 Alexander Kurtakov <akurtako@redhat.com> 3.3.2-2
+- Bump release.
+
+* Thu Feb 25 2010 Alexander Kurtakov <akurtako@redhat.com> 3.3.2-1
+- Update to 3.3.2.
+
+* Wed Feb 17 2010 Alexander Kurtakov <akurtako@redhat.com> 3.3.1-5
+- Adapt to commons-lang 2.4.
+
+* Wed Feb 17 2010 Alexander Kurtakov <akurtako@redhat.com> 3.3.1-4
+- Fix FTBFS rhbz#564704.
 
 * Fri Feb 12 2010 Andrew Overholt <overholt@redhat.com> 3.3.1-2.4
 - Don't build debuginfo if building arch-specific packages.

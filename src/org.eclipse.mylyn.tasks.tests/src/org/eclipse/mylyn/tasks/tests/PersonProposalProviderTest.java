@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2008 Frank Becker and others.
+ * Copyright (c) 2004, 2010 Frank Becker and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -174,7 +174,7 @@ public class PersonProposalProviderTest extends TestCase {
 		MockTask task1 = new MockTask(MockRepositoryConnector.REPOSITORY_URL, "1");
 		task1.setOwner("foo");
 		PersonProposalProvider provider = new PersonProposalProvider(MockRepositoryConnector.REPOSITORY_URL,
-				MockRepositoryConnector.REPOSITORY_KIND);
+				MockRepositoryConnector.CONNECTOR_KIND);
 		MockRepositoryQuery query = new MockRepositoryQuery("summary");
 		TasksUiPlugin.getTaskList().addQuery(query);
 		TasksUiPlugin.getTaskList().addTask(task1, query);
@@ -196,7 +196,7 @@ public class PersonProposalProviderTest extends TestCase {
 		TasksUi.getRepositoryManager().addRepository(repository);
 
 		PersonProposalProvider provider = new PersonProposalProvider(MockRepositoryConnector.REPOSITORY_URL,
-				MockRepositoryConnector.REPOSITORY_KIND);
+				MockRepositoryConnector.CONNECTOR_KIND);
 		IContentProposal[] result = provider.getProposals("user", 1);
 		assertNotNull(result);
 		assertEquals(1, result.length);

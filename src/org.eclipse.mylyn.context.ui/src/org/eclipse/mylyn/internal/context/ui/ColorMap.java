@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -36,7 +36,7 @@ public class ColorMap {
 
 	public static final Color RELATIONSHIP = new Color(Display.getDefault(), 32, 104, 157);
 
-	// FIXME 3.4 rename to HIGHLIGHTER_RED_INTERSECTION
+	// FIXME 3.5 rename to HIGHLIGHTER_RED_INTERSECTION
 	public static final Color HIGLIGHTER_RED_INTERSECTION = new Color(Display.getDefault(), 200, 0, 0);
 
 	public static final Color HIGHLIGHTER_ORANGE_GRADIENT = new Color(Display.getDefault(), 222, 137, 71);

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2009 David Green and others.
+ * Copyright (c) 2007, 2010 David Green and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -10,26 +10,25 @@
  *******************************************************************************/
 package org.eclipse.mylyn.wikitext.mediawiki.core;
 
-import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
+import org.eclipse.mylyn.internal.wikitext.mediawiki.core.AbstractMediaWikiLanguage;
+import org.eclipse.mylyn.internal.wikitext.mediawiki.core.BuiltInTemplateResolver;
 import org.eclipse.mylyn.internal.wikitext.mediawiki.core.MediaWikiIdGenerationStrategy;
 import org.eclipse.mylyn.internal.wikitext.mediawiki.core.block.HeadingBlock;
 import org.eclipse.mylyn.internal.wikitext.mediawiki.core.block.ListBlock;
 import org.eclipse.mylyn.internal.wikitext.mediawiki.core.block.ParagraphBlock;
 import org.eclipse.mylyn.internal.wikitext.mediawiki.core.block.PreformattedBlock;
 import org.eclipse.mylyn.internal.wikitext.mediawiki.core.block.TableBlock;
+import org.eclipse.mylyn.internal.wikitext.mediawiki.core.block.TableOfContentsBlock;
 import org.eclipse.mylyn.internal.wikitext.mediawiki.core.phrase.EscapePhraseModifier;
 import org.eclipse.mylyn.internal.wikitext.mediawiki.core.phrase.SimplePhraseModifier;
 import org.eclipse.mylyn.internal.wikitext.mediawiki.core.token.HyperlinkExternalReplacementToken;
 import org.eclipse.mylyn.internal.wikitext.mediawiki.core.token.HyperlinkInternalReplacementToken;
 import org.eclipse.mylyn.internal.wikitext.mediawiki.core.token.ImageReplacementToken;
 import org.eclipse.mylyn.internal.wikitext.mediawiki.core.token.LineBreakToken;
-import org.eclipse.mylyn.internal.wikitext.mediawiki.core.token.TemplateReplacementToken;
 import org.eclipse.mylyn.wikitext.core.parser.DocumentBuilder.SpanType;
-import org.eclipse.mylyn.wikitext.core.parser.markup.AbstractMarkupLanguage;
 import org.eclipse.mylyn.wikitext.core.parser.markup.Block;
 import org.eclipse.mylyn.wikitext.core.parser.markup.IdGenerationStrategy;
 import org.eclipse.mylyn.wikitext.core.parser.markup.MarkupLanguage;
@@ -48,16 +47,19 @@ import org.eclipse.mylyn.wikitext.core.parser.markup.token.PatternLiteralReplace
  * @author David Green
  * @since 1.0
  */
-public class MediaWikiLanguage extends AbstractMarkupLanguage {
-	private static final String CATEGORY_PREFIX = ":"; //$NON-NLS-1$
+public class MediaWikiLanguage extends AbstractMediaWikiLanguage {
 
-	private static final Pattern STANDARD_EXTERNAL_LINK_FORMAT = Pattern.compile(".*?/([^/]+)/(\\{\\d+\\})"); //$NON-NLS-1$
+	private List<Template> templates = new ArrayList<Template>();
 
-	private static final Pattern QUALIFIED_INTERNAL_LINK = Pattern.compile("([^/]+)/(.+)"); //$NON-NLS-1$
+	private List<TemplateResolver> templateProviders = new ArrayList<TemplateResolver>();
+
+	private String templateExcludes;
 
 	public MediaWikiLanguage() {
 		setName("MediaWiki"); //$NON-NLS-1$
 		setInternalLinkPattern("/wiki/{0}"); //$NON-NLS-1$
+
+		templateProviders.add(new BuiltInTemplateResolver());
 	}
 
 	/**
@@ -65,28 +67,11 @@ public class MediaWikiLanguage extends AbstractMarkupLanguage {
 	 * 
 	 * @param pageName
 	 *            the name of the page to target
-	 * 
 	 * @return the href to access the page
-	 * 
 	 * @see MarkupLanguage#getInternalLinkPattern()
 	 */
 	public String toInternalHref(String pageName) {
-		String pageId = pageName.replace(' ', '_');
-		// FIXME: other character encodings occur here, not just ' '
-
-		if (pageId.startsWith(CATEGORY_PREFIX) && pageId.length() > CATEGORY_PREFIX.length()) { // category
-			return pageId.substring(CATEGORY_PREFIX.length());
-		} else if (pageId.startsWith("#")) { //$NON-NLS-1$
-			// internal anchor
-			return pageId;
-		}
-		if (QUALIFIED_INTERNAL_LINK.matcher(pageId).matches()) {
-			Matcher matcher = STANDARD_EXTERNAL_LINK_FORMAT.matcher(internalLinkPattern);
-			if (matcher.matches()) {
-				return internalLinkPattern.substring(0, matcher.start(1)) + pageId;
-			}
-		}
-		return MessageFormat.format(super.internalLinkPattern, pageId);
+		return super.mapPageNameToHref(pageName);
 	}
 
 	@Override
@@ -108,6 +93,7 @@ public class MediaWikiLanguage extends AbstractMarkupLanguage {
 		}
 
 		blocks.add(new TableBlock());
+		blocks.add(new TableOfContentsBlock());
 
 		for (Block block : blocks) {
 			if (block instanceof ParagraphBlock) {
@@ -161,7 +147,6 @@ public class MediaWikiLanguage extends AbstractMarkupLanguage {
 		tokenSyntax.add(new HyperlinkExternalReplacementToken());
 		tokenSyntax.add(new ImpliedHyperlinkReplacementToken());
 		tokenSyntax.add(new PatternLiteralReplacementToken("(?:(?<=\\w\\s)(----)(?=\\s\\w))", "<hr/>")); // horizontal rule //$NON-NLS-1$ //$NON-NLS-2$
-		tokenSyntax.add(new TemplateReplacementToken());
 		tokenSyntax.add(new org.eclipse.mylyn.internal.wikitext.mediawiki.core.token.EntityReferenceReplacementToken());
 	}
 
@@ -174,4 +159,70 @@ public class MediaWikiLanguage extends AbstractMarkupLanguage {
 		return paragraphBlock;
 	}
 
+	/**
+	 * @since 1.3
+	 */
+	@Override
+	public List<Template> getTemplates() {
+		return templates;
+	}
+
+	/**
+	 * @since 1.3
+	 */
+	public void setTemplates(List<Template> templates) {
+		if (templates == null) {
+			throw new IllegalArgumentException();
+		}
+		this.templates = templates;
+	}
+
+	/**
+	 * @since 1.3
+	 */
+	@Override
+	public List<TemplateResolver> getTemplateProviders() {
+		return templateProviders;
+	}
+
+	/**
+	 * @since 1.3
+	 */
+	public void setTemplateProviders(List<TemplateResolver> templateProviders) {
+		if (templateProviders == null) {
+			throw new IllegalArgumentException();
+		}
+		this.templateProviders = templateProviders;
+	}
+
+	@Override
+	public MarkupLanguage clone() {
+		MediaWikiLanguage copy = (MediaWikiLanguage) super.clone();
+		copy.templates = new ArrayList<Template>(templates);
+		copy.templateProviders = new ArrayList<TemplateResolver>(templateProviders);
+		copy.templateExcludes = templateExcludes;
+		return copy;
+	}
+
+	/**
+	 * Indicate template names to exclude.
+	 * 
+	 * @param templateExcludes
+	 *            a comma-delimited list of names, may include '*' wildcards
+	 * @since 1.3
+	 */
+	public void setTemplateExcludes(String templateExcludes) {
+		this.templateExcludes = templateExcludes;
+	}
+
+	/**
+	 * Indicate template names to exclude.
+	 * 
+	 * @return a comma-delimited list of names, may include '*' wildcards, or null if none are to be excluded
+	 * @since 1.3
+	 */
+	@Override
+	public String getTemplateExcludes() {
+		return templateExcludes;
+	}
 }

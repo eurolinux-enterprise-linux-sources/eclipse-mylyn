@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2009 David Green and others.
+ * Copyright (c) 2007, 2010 David Green and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -17,13 +17,11 @@ import org.eclipse.mylyn.wikitext.core.parser.Attributes;
 import org.eclipse.mylyn.wikitext.core.parser.markup.Block;
 
 /**
- * 
- * 
  * @author David Green
  */
 public class HeadingBlock extends Block {
 
-	private static final Pattern pattern = Pattern.compile("\\s*(\\={1,6})\\s*(.+?)\\s*\\1"); //$NON-NLS-1$
+	private static final Pattern pattern = Pattern.compile("\\s*(\\={1,6})\\s*(.+?)\\s*\\1\\s*"); //$NON-NLS-1$
 
 	private int blockLineCount = 0;
 

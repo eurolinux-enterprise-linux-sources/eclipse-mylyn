@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -110,4 +110,12 @@ public class PlatformUtil {
 	public static boolean hasNarrowToolBar() {
 		return Platform.WS_WIN32.equals(SWT.getPlatform());
 	}
+
+	/**
+	 * Returns the width of the view menu drop-down button.
+	 */
+	public static int getViewMenuWidth() {
+		return 32;
+	}
+
 }

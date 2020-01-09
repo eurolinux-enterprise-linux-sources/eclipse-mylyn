@@ -18,7 +18,7 @@ public class TracTestConstants {
 
 	public static final String SERVER = System.getProperty("mylyn.trac.server", "mylyn.eclipse.org");
 
-	public static final String TEST_TRAC_096_URL = "http://" + SERVER + "/trac096";
+//	public static final String TEST_TRAC_096_URL = "http://" + SERVER + "/trac096";
 
 	public static final String TEST_TRAC_010_URL = "http://" + SERVER + "/trac010";
 
@@ -29,6 +29,8 @@ public class TracTestConstants {
 	public static final String TEST_TRAC_010_FORM_AUTH_URL = "http://" + SERVER + "/trac010formauth";
 
 	public static final String TEST_TRAC_011_URL = "http://" + SERVER + "/trac011";
+
+	public static final String TEST_TRAC_012_URL = "http://" + SERVER + "/trac012";
 
 	public static final String TEST_TRAC_TRUNK_URL = "http://" + SERVER + "/tractrunk";
 

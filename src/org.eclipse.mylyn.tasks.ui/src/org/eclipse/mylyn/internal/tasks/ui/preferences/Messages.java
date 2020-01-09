@@ -25,14 +25,6 @@ public class Messages extends NLS {
 		NLS.initializeMessages(BUNDLE_NAME, Messages.class);
 	}
 
-	public static String Friday;
-
-	public static String Monday;
-
-	public static String Saturday;
-
-	public static String Sunday;
-
 	public static String TasksUiPreferencePage_Advanced;
 
 	public static String TasksUiPreferencePage_Browse_;
@@ -43,7 +35,7 @@ public class Messages extends NLS {
 
 	public static String TasksUiPreferencePage_Data_directory_;
 
-	public static String TasksUiPreferencePage_Destination_folder_does_not_exist;
+	public static String TasksUiPreferencePage_Destination_folder_cannot_be_created;
 
 	public static String TasksUiPreferencePage_Display_notifications_for_overdue_tasks_and_incoming_changes;
 
@@ -70,6 +62,8 @@ public class Messages extends NLS {
 	public static String TasksUiPreferencePage_Scheduling;
 
 	public static String TasksUiPreferencePage_See_X_for_configuring_Task_List_colors;
+
+	public static String TasksUiPreferencePage_show_service_messages;
 
 	public static String TasksUiPreferencePage_Show_tooltip_on_hover_Label;
 
@@ -103,9 +97,4 @@ public class Messages extends NLS {
 
 	public static String TasksUiPreferencePage_Week_Start;
 
-	public static String Thursday;
-
-	public static String Tuesday;
-
-	public static String Wednesday;
 }

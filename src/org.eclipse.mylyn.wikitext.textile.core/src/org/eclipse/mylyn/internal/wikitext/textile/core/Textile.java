@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2008 David Green and others.
+ * Copyright (c) 2007, 2010 David Green and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -19,17 +19,15 @@ import org.eclipse.mylyn.wikitext.core.parser.Attributes;
 import org.eclipse.mylyn.wikitext.core.parser.util.MatcherAdaper;
 
 /**
- * 
- * 
  * @author David Green
  */
 public class Textile {
 
-	private static final String REGEX_TEXTILE_CLASS_ID = "(?:\\(([^#\\)]+)?(?:#([^\\)]+))?\\))"; //$NON-NLS-1$
+	private static final String REGEX_TEXTILE_CLASS_ID = "(?:\\(([^#\\)]+)?(?:#([^\\(\\)]+))?\\))"; //$NON-NLS-1$
 
-	private static final String REGEX_TEXTILE_STYLE = "(?:\\{([^\\}]+)\\})"; //$NON-NLS-1$
+	private static final String REGEX_TEXTILE_STYLE = "(?:\\{([^\\{\\}]+)\\})"; //$NON-NLS-1$
 
-	private static final String REGEX_LANGUAGE = "(?:\\[([^\\]]+)\\])"; //$NON-NLS-1$
+	private static final String REGEX_LANGUAGE = "(?:\\[([^\\[\\]]+)\\])"; //$NON-NLS-1$
 
 	public static final String REGEX_ATTRIBUTES = "(?:" + REGEX_TEXTILE_CLASS_ID + "|" + REGEX_TEXTILE_STYLE + "|" //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
 			+ REGEX_LANGUAGE + "){0,3}"; //$NON-NLS-1$

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2009 David Green and others.
+ * Copyright (c) 2007, 2010 David Green and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -375,7 +375,6 @@ public class DefaultXmlStreamWriter extends XmlStreamWriter {
 	 *            The writer to which the character should be printed.
 	 * @param ch
 	 *            the character to print.
-	 * 
 	 * @throws IOException
 	 */
 	private static void printEscaped(PrintWriter writer, int ch, boolean attribute) throws IOException {
@@ -411,9 +410,11 @@ public class DefaultXmlStreamWriter extends XmlStreamWriter {
 		switch (ch) {
 		case '<':
 			return "lt"; //$NON-NLS-1$
-
-			// no need to encode '>'.
-
+		case '>':
+			if (!attribute) {
+				// bug 302291: text containing CDATA produces invalid HTML
+				return "gt"; //$NON-NLS-1$
+			}
 		case '"':
 			if (attribute) {
 				return "quot"; //$NON-NLS-1$

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -468,6 +468,18 @@ public class TaskEditorCommentPart extends AbstractTaskEditorPart {
 			return editor;
 		}
 
+		public TaskAttribute getTaskAttribute() {
+			return commentAttribute;
+		}
+
+		public TaskComment getTaskComment() {
+			return taskComment;
+		}
+
+		public Control getControl() {
+			return commentComposite;
+		}
+
 	}
 
 	private class ReplyToCommentAction extends AbstractReplyToCommentAction implements IMenuCreator {
@@ -600,8 +612,8 @@ public class TaskEditorCommentPart extends AbstractTaskEditorPart {
 						manager.add(replyAction);
 					}
 				}
-				actionGroup.fillContextMenu(manager);
 				actionGroup.setContext(new ActionContext(selectionProvider.getSelection()));
+				actionGroup.fillContextMenu(manager);
 
 				if (currentViewer != null && currentViewer.getEditor() instanceof RichTextAttributeEditor) {
 					RichTextAttributeEditor editor = (RichTextAttributeEditor) currentViewer.getEditor();
@@ -773,6 +785,40 @@ public class TaskEditorCommentPart extends AbstractTaskEditorPart {
 				}
 			}
 		}
+	}
+
+	@Override
+	public boolean setFormInput(Object input) {
+		if (input instanceof String) {
+			String text = (String) input;
+			if (commentAttributes != null) {
+				for (TaskAttribute commentAttribute : commentAttributes) {
+					if (text.equals(commentAttribute.getId())) {
+						selectReveal(commentAttribute);
+					}
+				}
+			}
+		}
+		return super.setFormInput(input);
+	}
+
+	public CommentViewer selectReveal(TaskAttribute commentAttribute) {
+		if (commentAttribute == null) {
+			return null;
+		}
+		expandAllComments();
+		List<CommentGroupViewer> groupViewers = getCommentGroupViewers();
+		for (CommentGroupViewer groupViewer : groupViewers) {
+			for (CommentViewer viewer : groupViewer.getCommentViewers()) {
+				if (viewer.getTaskAttribute().equals(commentAttribute)) {
+					//CommonFormUtil.ensureVisible(viewer.getControl());
+					// EditorUtil is consistent with behavior of outline 
+					EditorUtil.reveal(getTaskEditorPage().getManagedForm().getForm(), commentAttribute.getId());
+					return viewer;
+				}
+			}
+		}
+		return null;
 	}
 
 }

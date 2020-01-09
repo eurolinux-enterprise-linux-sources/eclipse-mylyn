@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2008 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -25,6 +25,8 @@ public class IdeUiBridgePlugin extends AbstractUIPlugin {
 
 	private static IdeUiBridgePlugin INSTANCE;
 
+	// FIXME 3.5 remove unused field
+	@Deprecated
 	public static final ImageDescriptor EDGE_REF_XML = getImageDescriptor("icons/elcl16/edge-ref-xml.gif"); //$NON-NLS-1$
 
 	public static class IdeUiBridgeStartup implements IContextUiStartup {

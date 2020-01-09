@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2008 David Green and others.
+ * Copyright (c) 2007, 2010 David Green and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -20,7 +20,6 @@ import org.eclipse.mylyn.wikitext.mediawiki.core.MediaWikiLanguage;
  * match [[internal links]]
  * 
  * @author David Green
- * 
  */
 public class HyperlinkInternalReplacementToken extends PatternBasedElement {
 
@@ -44,7 +43,7 @@ public class HyperlinkInternalReplacementToken extends PatternBasedElement {
 		public void emit() {
 			String pageName = group(1);
 			String altText = group(2);
-			String href = ((MediaWikiLanguage) getMarkupLanguage()).toInternalHref(pageName);
+			String href = ((MediaWikiLanguage) getMarkupLanguage()).toInternalHref(pageName.replace(' ', '_'));
 
 			// category references start with ':' but are not referenced that way in the text
 			if (pageName.startsWith(":")) { //$NON-NLS-1$

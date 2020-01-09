@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -82,7 +82,7 @@ public abstract class AbstractTask extends AbstractTaskContainer implements ITas
 
 	private String notes = ""; //$NON-NLS-1$
 
-	private int estimatedTimeHours = 1;
+	private int estimatedTimeHours = 0;
 
 	private boolean markReadPending;
 
@@ -126,7 +126,7 @@ public abstract class AbstractTask extends AbstractTaskContainer implements ITas
 
 	@Deprecated
 	public void setLastReadTimeStamp(String lastReadTimeStamp) {
-		this.lastReadTimeStamp = lastReadTimeStamp;
+		this.lastReadTimeStamp = (lastReadTimeStamp != null) ? lastReadTimeStamp.intern() : null;
 	}
 
 	/**
@@ -167,7 +167,7 @@ public abstract class AbstractTask extends AbstractTaskContainer implements ITas
 	public void setOwner(String owner) {
 		if (!areEqual(this.owner, owner)) {
 			String oldValue = this.owner;
-			this.owner = owner;
+			this.owner = (owner != null) ? owner.intern() : null;
 			firePropertyChange("owner", oldValue, owner); //$NON-NLS-1$
 		}
 	}
@@ -197,7 +197,7 @@ public abstract class AbstractTask extends AbstractTaskContainer implements ITas
 	}
 
 	public final void setRepositoryUrl(String repositoryUrl) {
-		this.repositoryUrl = repositoryUrl;
+		this.repositoryUrl = (repositoryUrl != null) ? repositoryUrl.intern() : null;
 		super.setHandleIdentifier(RepositoryTaskHandleUtil.getHandle(repositoryUrl, taskId));
 	}
 
@@ -270,7 +270,7 @@ public abstract class AbstractTask extends AbstractTaskContainer implements ITas
 	public void setPriority(String priority) {
 		if (!areEqual(this.priority, priority)) {
 			String oldValue = this.priority;
-			this.priority = priority;
+			this.priority = (priority != null) ? priority.intern() : null;
 			firePropertyChange("priority", oldValue, priority); //$NON-NLS-1$
 		}
 	}
@@ -413,7 +413,7 @@ public abstract class AbstractTask extends AbstractTaskContainer implements ITas
 	public void setTaskKind(String taskKind) {
 		if (!areEqual(this.taskKind, taskKind)) {
 			String oldValue = this.taskKind;
-			this.taskKind = taskKind;
+			this.taskKind = (taskKind != null) ? taskKind.intern() : null;
 			firePropertyChange("taskKind", oldValue, taskKind); //$NON-NLS-1$
 		}
 	}

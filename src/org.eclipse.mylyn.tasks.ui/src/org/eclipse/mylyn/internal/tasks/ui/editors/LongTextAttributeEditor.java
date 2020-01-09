@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -47,7 +47,7 @@ public class LongTextAttributeEditor extends AbstractAttributeEditor {
 		}
 		SourceViewer viewer = new SourceViewer(parent, null, style);
 		RepositoryTextViewerConfiguration configuration = RichTextEditor.installHyperlinkPresenter(viewer,
-				getModel().getTaskRepository(), Mode.DEFAULT);
+				getModel().getTaskRepository(), getModel().getTask(), Mode.DEFAULT);
 		viewer.configure(configuration);
 		viewer.setDocument(new Document(getValue()));
 		final StyledText text = viewer.getTextWidget();

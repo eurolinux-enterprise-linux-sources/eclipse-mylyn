@@ -38,8 +38,11 @@ public class TracFixture extends TestFixture {
 
 	public static XmlRpcServer.TestData data010;
 
-	public static TracFixture TRAC_0_9_WEB = new TracFixture(Version.TRAC_0_9, TracTestConstants.TEST_TRAC_096_URL,
-			"0.9", "Web");
+	public static TracFixture TRAC_INVALID = new TracFixture(Version.TRAC_0_9, TracTestConstants.TEST_TRAC_INVALID_URL,
+			"0.11", "Invalid URL");
+
+//	public static TracFixture TRAC_0_9_WEB = new TracFixture(Version.TRAC_0_9, TracTestConstants.TEST_TRAC_096_URL,
+//			"0.9", "Web");
 
 	public static TracFixture TRAC_0_10_WEB = new TracFixture(Version.TRAC_0_9, TracTestConstants.TEST_TRAC_010_URL,
 			"0.10", "Web");
@@ -62,27 +65,37 @@ public class TracFixture extends TestFixture {
 	public static TracFixture TRAC_0_11_XML_RPC = new TracFixture(Version.XML_RPC, TracTestConstants.TEST_TRAC_011_URL,
 			"0.11", "XML-RPC");
 
+	public static TracFixture TRAC_0_12_WEB = new TracFixture(Version.TRAC_0_9, TracTestConstants.TEST_TRAC_012_URL,
+			"0.12", "Web");
+
+	public static TracFixture TRAC_0_12_XML_RPC = new TracFixture(Version.XML_RPC, TracTestConstants.TEST_TRAC_012_URL,
+			"0.12", "XML-RPC");
+
 	public static TracFixture TRAC_TRUNK_WEB = new TracFixture(Version.TRAC_0_9, TracTestConstants.TEST_TRAC_TRUNK_URL,
-			"0.12dev-r0", "Web");
+			"0.13dev-r0", "Web");
 
 	public static TracFixture TRAC_TRUNK_XML_RPC = new TracFixture(Version.XML_RPC,
-			TracTestConstants.TEST_TRAC_TRUNK_URL, "0.12dev-r0", "XML-RPC");
+			TracTestConstants.TEST_TRAC_TRUNK_URL, "0.13dev-r0", "XML-RPC");
 
-	public static TracFixture DEFAULT = TRAC_0_11_XML_RPC;
+	public static TracFixture DEFAULT = TRAC_0_12_XML_RPC;
 
 	//public static TracFixture DEFAULT = TRAC_0_11_WEB;
 
 	/**
 	 * Standard configurations for running all test against.
 	 */
-	public static final TracFixture[] ALL = new TracFixture[] { TRAC_0_9_WEB, TRAC_0_10_WEB, TRAC_0_11_WEB,
-			TRAC_TRUNK_WEB, TRAC_0_10_XML_RPC, TRAC_0_11_XML_RPC, TRAC_TRUNK_XML_RPC, /* TRAC_0_10_XML_RPC_SSL, */};
+	public static final TracFixture[] ALL = new TracFixture[] { TRAC_0_10_WEB, TRAC_0_11_WEB, TRAC_0_12_WEB,
+	/* TRAC_TRUNK_WEB, */TRAC_0_10_XML_RPC, TRAC_0_11_XML_RPC, TRAC_0_12_XML_RPC, /* TRAC_TRUNK_XML_RPC, TRAC_0_10_XML_RPC_SSL, */};
+
+//	public static final TracFixture[] ALL = new TracFixture[] { TRAC_TRUNK_XML_RPC };
 
 	/**
 	 * Misc configurations for running a limited number of test against.
 	 */
 	public static final TracFixture[] MISC = new TracFixture[] { TRAC_0_10_XML_RPC_DIGEST_AUTH,
 			TRAC_0_10_XML_RPC_FORM_AUTH, };
+
+//	public static final TracFixture[] MISC = new TracFixture[] {};
 
 	public static void cleanup010() throws Exception {
 		if (data010 != null) {
@@ -174,7 +187,6 @@ public class TracFixture extends TestFixture {
 
 	public ITracClient connect(String url, Proxy proxy, PrivilegeLevel level) throws Exception {
 		Credentials credentials = TestUtil.readCredentials(level);
-		System.err.println(" Read credentials: " + credentials + " (" + level + ")"); //$NON-NLS-1$
 		return connect(url, credentials.username, credentials.password, proxy);
 	}
 
@@ -202,6 +214,10 @@ public class TracFixture extends TestFixture {
 
 	public String getVersion() {
 		return version;
+	}
+
+	public boolean isXmlRpcEnabled() {
+		return true;
 	}
 
 	public TaskRepository singleRepository(TracRepositoryConnector connector) {

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -70,7 +70,7 @@ public class TaskTrimWidget extends WorkbenchWindowControlContribution {
 
 	private Menu menu;
 
-	private TaskHyperlink activeTaskLabel;
+	private TaskScalingHyperlink activeTaskLabel;
 
 	private final ITaskActivationListener taskActivationListener = new TaskActivationAdapter() {
 
@@ -114,12 +114,21 @@ public class TaskTrimWidget extends WorkbenchWindowControlContribution {
 		public void propertyChange(PropertyChangeEvent event) {
 			String property = event.getProperty();
 			if (property.equals(ITasksUiPreferenceConstants.SHOW_TRIM)) {
-				setTrimVisible((Boolean) event.getNewValue());
+				Object newValue = event.getNewValue();
+				Boolean isVisible = false;
+				if (newValue instanceof Boolean) {
+					isVisible = (Boolean) newValue;
+				} else if (newValue instanceof String) {
+					isVisible = Boolean.parseBoolean((String) newValue);
+				}
+				setTrimVisible(isVisible);
 			}
 		}
 	};
 
 	private SelectionProviderAdapter activeTaskSelectionProvider;
+
+	private RepositoryElementActionGroup actionGroup;
 
 	public TaskTrimWidget() {
 		TasksUi.getTaskActivityManager().addActivationListener(taskActivationListener);
@@ -157,6 +166,8 @@ public class TaskTrimWidget extends WorkbenchWindowControlContribution {
 		}
 		menu = null;
 
+		actionGroup.setSelectionProvider(null);
+
 		TasksUi.getTaskActivityManager().removeActivationListener(taskActivationListener);
 		TasksUiPlugin.getTaskList().removeChangeListener(taskListListener);
 		TasksUiPlugin.getDefault().getPreferenceStore().removePropertyChangeListener(preferencesListener);
@@ -193,7 +204,7 @@ public class TaskTrimWidget extends WorkbenchWindowControlContribution {
 		Point p = gc.textExtent("WWWWWWWWWWWWWWW"); //$NON-NLS-1$
 		gc.dispose();
 
-		activeTaskLabel = new TaskHyperlink(container, SWT.RIGHT);
+		activeTaskLabel = new TaskScalingHyperlink(container, SWT.RIGHT);
 		// activeTaskLabel.setLayoutData(new GridData(p.x, SWT.DEFAULT));
 		GridData gridData = new GridData(SWT.LEFT, SWT.CENTER, false, true);
 		gridData.widthHint = p.x;
@@ -253,7 +264,7 @@ public class TaskTrimWidget extends WorkbenchWindowControlContribution {
 	private void hookContextMenu() {
 		activeTaskSelectionProvider = new SelectionProviderAdapter();
 
-		final RepositoryElementActionGroup actionGroup = new RepositoryElementActionGroup();
+		actionGroup = new RepositoryElementActionGroup();
 		actionGroup.setSelectionProvider(activeTaskSelectionProvider);
 
 		menuManager = new MenuManager("#PopupMenu"); //$NON-NLS-1$

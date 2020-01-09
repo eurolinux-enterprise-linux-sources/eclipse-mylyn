@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009 Tasktop Technologies and others.
+ * Copyright (c) 2009, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -141,10 +141,15 @@ public class UsageUploadManager {
 			final int status = WebUtil.execute(httpClient, hostConfiguration, getUidMethod, monitor);
 
 			if (status == HttpStatus.SC_OK) {
-				String response = getStringFromStream(WebUtil.getResponseBodyAsStream(getUidMethod, monitor));
-				response = response.substring(response.indexOf(":") + 1).trim(); //$NON-NLS-1$
-				int uid = Integer.parseInt(response);
-				return uid;
+				InputStream inputStream = WebUtil.getResponseBodyAsStream(getUidMethod, monitor);
+				try {
+					String response = getStringFromStream(inputStream);
+					response = response.substring(response.indexOf(":") + 1).trim(); //$NON-NLS-1$
+					int uid = Integer.parseInt(response);
+					return uid;
+				} finally {
+					inputStream.close();
+				}
 			} else {
 				throw new UsageDataException(NLS.bind(Messages.UsageUploadManager_Error_Getting_Uid_Http_Response,
 						status));
@@ -192,11 +197,14 @@ public class UsageUploadManager {
 
 			if (status == HttpStatus.SC_OK) {
 				InputStream inputStream = WebUtil.getResponseBodyAsStream(getUserIdMethod, monitor);
-				byte[] buffer = new byte[SIZE_OF_INT];
-				int numBytesRead = inputStream.read(buffer);
-				int uid = new Integer(new String(buffer, 0, numBytesRead)).intValue();
-				inputStream.close();
-				return uid;
+				try {
+					byte[] buffer = new byte[SIZE_OF_INT];
+					int numBytesRead = inputStream.read(buffer);
+					int uid = new Integer(new String(buffer, 0, numBytesRead)).intValue();
+					return uid;
+				} finally {
+					inputStream.close();
+				}
 			} else {
 				throw new UsageDataException(NLS.bind(Messages.UsageUploadManager_Error_Getting_Uid_Http_Response,
 						status));
@@ -211,7 +219,7 @@ public class UsageUploadManager {
 
 			}
 		} finally {
-			getUserIdMethod.releaseConnection();
+			WebUtil.releaseConnection(getUserIdMethod, monitor);
 		}
 	}
 

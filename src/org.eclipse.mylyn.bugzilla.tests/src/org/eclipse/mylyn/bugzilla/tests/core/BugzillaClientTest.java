@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009 Tasktop Technologies and others.
+ * Copyright (c) 2009, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -21,12 +21,15 @@ import junit.framework.TestCase;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.mylyn.bugzilla.tests.support.BugzillaFixture;
 import org.eclipse.mylyn.commons.net.AbstractWebLocation;
+import org.eclipse.mylyn.commons.net.AuthenticationCredentials;
+import org.eclipse.mylyn.commons.net.AuthenticationType;
 import org.eclipse.mylyn.internal.bugzilla.core.BugzillaAttribute;
 import org.eclipse.mylyn.internal.bugzilla.core.BugzillaAttributeMapper;
 import org.eclipse.mylyn.internal.bugzilla.core.BugzillaClient;
 import org.eclipse.mylyn.internal.bugzilla.core.BugzillaRepositoryConnector;
 import org.eclipse.mylyn.internal.bugzilla.core.RepositoryConfiguration;
 import org.eclipse.mylyn.internal.tasks.core.RepositoryQuery;
+import org.eclipse.mylyn.internal.tasks.core.TaskRepositoryLocation;
 import org.eclipse.mylyn.tasks.core.RepositoryResponse;
 import org.eclipse.mylyn.tasks.core.TaskRepository;
 import org.eclipse.mylyn.tasks.core.data.TaskAttribute;
@@ -37,6 +40,7 @@ import org.eclipse.mylyn.tests.util.TestUtil.PrivilegeLevel;
 /**
  * @author Robert Elves
  * @author Thomas Ehrnhoefer
+ * @author Frank Becker
  */
 public class BugzillaClientTest extends TestCase {
 
@@ -62,6 +66,7 @@ public class BugzillaClientTest extends TestCase {
 		assertEquals(7, config.getSeverities().size());
 		assertEquals(3, config.getProducts().size());
 		assertEquals(4, config.getOpenStatusValues().size());
+		assertEquals(3, config.getClosedStatusValues().size());
 		assertEquals(2, config.getKeywords().size());
 		assertEquals(2, config.getComponents("ManualTest").size());
 		assertEquals(4, config.getVersions("ManualTest").size());
@@ -95,13 +100,64 @@ public class BugzillaClientTest extends TestCase {
 		}
 	}
 
+	public void testValidateAnonymous() throws Exception {
+		TaskRepository repository = BugzillaFixture.current().repository();
+		AuthenticationCredentials anonymousCreds = new AuthenticationCredentials("", "");
+		repository.setCredentials(AuthenticationType.REPOSITORY, anonymousCreds, false);
+		TaskRepositoryLocation location = new TaskRepositoryLocation(repository);
+
+		client = new BugzillaClient(location, repository, BugzillaFixture.current().connector());
+		client.validate(new NullProgressMonitor());
+	}
+
+	public void testValidateAnonymousPlusHTTP() throws Exception {
+		TaskRepository repository = BugzillaFixture.current().repository();
+		AuthenticationCredentials anonymousCreds = new AuthenticationCredentials("", "");
+		repository.setCredentials(AuthenticationType.REPOSITORY, anonymousCreds, false);
+		repository.setCredentials(AuthenticationType.HTTP, new AuthenticationCredentials("YYYYYYYY", "XXXXXXXX"), false);
+		TaskRepositoryLocation location = new TaskRepositoryLocation(repository);
+
+		client = new BugzillaClient(location, repository, BugzillaFixture.current().connector());
+		try {
+			client.validate(new NullProgressMonitor());
+		} catch (Exception e) {
+			assertEquals("Unable to login to " + repository.getUrl()
+					+ ".\n\n\n    The username or password you entered is not valid.\n\n"
+					+ "Please validate credentials via Task Repositories view.", e.getMessage());
+		}
+	}
+
+	public void testValidateUser() throws Exception {
+		TaskRepository repository = BugzillaFixture.current().repository();
+		TaskRepositoryLocation location = new TaskRepositoryLocation(repository);
+
+		client = new BugzillaClient(location, repository, BugzillaFixture.current().connector());
+		client.validate(new NullProgressMonitor());
+	}
+
+	public void testValidateUserPlusHTTP() throws Exception {
+		TaskRepository repository = BugzillaFixture.current().repository();
+		repository.setCredentials(AuthenticationType.HTTP, new AuthenticationCredentials("YYYYYYYY", "XXXXXXXX"), false);
+		TaskRepositoryLocation location = new TaskRepositoryLocation(repository);
+
+		client = new BugzillaClient(location, repository, BugzillaFixture.current().connector());
+		try {
+			client.validate(new NullProgressMonitor());
+		} catch (Exception e) {
+			assertEquals("Unable to login to " + repository.getUrl()
+					+ ".\n\n\n    The username or password you entered is not valid.\n\n"
+					+ "Please validate credentials via Task Repositories view.", e.getMessage());
+		}
+	}
+
 	public void testCommentQuery() throws Exception {
 		BugzillaRepositoryConnector connector = BugzillaFixture.current().connector();
 		BugzillaAttributeMapper mapper = new BugzillaAttributeMapper(repository, connector);
 		TaskData newData = new TaskData(mapper, BugzillaFixture.current().getConnectorKind(), BugzillaFixture.current()
 				.getRepositoryUrl(), "");
 
-		connector.getTaskDataHandler().initializeTaskData(repository, newData, null, new NullProgressMonitor());
+		assertTrue(connector.getTaskDataHandler().initializeTaskData(repository, newData, null,
+				new NullProgressMonitor()));
 		newData.getRoot().getMappedAttribute(TaskAttribute.SUMMARY).setValue("testCommentQuery()");
 		newData.getRoot().getMappedAttribute(TaskAttribute.PRODUCT).setValue("TestProduct");
 		newData.getRoot().getMappedAttribute(TaskAttribute.COMPONENT).setValue("TestComponent");
@@ -131,15 +187,14 @@ public class BugzillaClientTest extends TestCase {
 		assertEquals(bugid, returnedData.iterator().next().getTaskId());
 	}
 
-//	public void testCredentialsEncoding() throws IOException, BugzillaException, KeyManagementException,
-//			GeneralSecurityException {
-//		String poundSignUTF8 = BugzillaClient.addCredentials(IBugzillaTestConstants.TEST_BUGZILLA_222_URL, "UTF-8",
-//				"testUser", "\u00A3");
-//		assertTrue(poundSignUTF8.endsWith("password=%C2%A3"));
-//		String poundSignISO = BugzillaClient.addCredentials(IBugzillaTestConstants.TEST_BUGZILLA_222_URL, "ISO-8859-1",
-//				"testUser", "\u00A3");
-//		assertFalse(poundSignISO.contains("%C2%A3"));
-//		assertTrue(poundSignISO.endsWith("password=%A3"));
-//	}
+	public void testLeadingZeros() throws Exception {
+		String taskNumber = "0002";
+		TaskData taskData = BugzillaFixture.current().getTask(taskNumber, client);
+		assertNotNull(taskData);
+		assertNotNull(taskData);
+		TaskAttribute idAttribute = taskData.getRoot().getAttribute(BugzillaAttribute.BUG_ID.getKey());
+		assertNotNull(idAttribute);
+		assertEquals("2", idAttribute.getValue());
+	}
 
 }

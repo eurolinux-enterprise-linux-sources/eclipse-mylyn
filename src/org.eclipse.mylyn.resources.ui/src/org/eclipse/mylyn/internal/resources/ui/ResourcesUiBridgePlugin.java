@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2008 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -13,16 +13,15 @@ package org.eclipse.mylyn.internal.resources.ui;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.ResourceBundle;
-import java.util.Set;
-import java.util.StringTokenizer;
 
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IResourceChangeEvent;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.IAdaptable;
+import org.eclipse.jface.util.IPropertyChangeListener;
+import org.eclipse.jface.util.PropertyChangeEvent;
 import org.eclipse.mylyn.context.core.AbstractContextStructureBridge;
 import org.eclipse.mylyn.context.core.ContextCore;
 import org.eclipse.mylyn.context.core.IInteractionContext;
@@ -65,11 +64,12 @@ public class ResourcesUiBridgePlugin extends AbstractUIPlugin {
 
 	private ResourceInterestUpdater interestUpdater;
 
-	private static final String PREF_STORE_DELIM = ", "; //$NON-NLS-1$
+	private final IPropertyChangeListener propertyChangeListener = new IPropertyChangeListener() {
+		public void propertyChange(PropertyChangeEvent event) {
+			updateResourceMonitorEnablement();
+		}
 
-	public static final String PREF_RESOURCES_IGNORED = "org.eclipse.mylyn.ide.resources.ignored.pattern"; //$NON-NLS-1$
-
-	public static final String PREF_VAL_DEFAULT_RESOURCES_IGNORED = ".*" + PREF_STORE_DELIM; //$NON-NLS-1$
+	};
 
 	public ResourcesUiBridgePlugin() {
 		super();
@@ -82,7 +82,6 @@ public class ResourcesUiBridgePlugin extends AbstractUIPlugin {
 	@Override
 	public void start(BundleContext context) throws Exception {
 		super.start(context);
-		initPreferenceDefaults();
 		interestUpdater = new ResourceInterestUpdater();
 	}
 
@@ -91,6 +90,9 @@ public class ResourcesUiBridgePlugin extends AbstractUIPlugin {
 	 */
 	protected void lazyStart() {
 		resourceChangeMonitor = new ResourceChangeMonitor();
+		updateResourceMonitorEnablement();
+		getPreferenceStore().addPropertyChangeListener(propertyChangeListener);
+
 		resourceInteractionMonitor = new ResourceInteractionMonitor();
 		interestEditorTracker = new EditorInteractionMonitor();
 
@@ -103,11 +105,13 @@ public class ResourcesUiBridgePlugin extends AbstractUIPlugin {
 	}
 
 	protected void lazyStop() {
+		getPreferenceStore().removePropertyChangeListener(propertyChangeListener);
 		if (resourceChangeMonitor != null) {
 			ResourcesPlugin.getWorkspace().removeResourceChangeListener(resourceChangeMonitor);
 		}
 		if (resourceInteractionMonitor != null) {
 			MonitorUi.getSelectionMonitors().remove(resourceInteractionMonitor);
+			resourceChangeMonitor.dispose();
 		}
 		if (interestEditorTracker != null) {
 			interestEditorTracker.dispose(PlatformUI.getWorkbench());
@@ -125,10 +129,6 @@ public class ResourcesUiBridgePlugin extends AbstractUIPlugin {
 		INSTANCE = null;
 	}
 
-	private void initPreferenceDefaults() {
-		getPreferenceStore().setDefault(PREF_RESOURCES_IGNORED, PREF_VAL_DEFAULT_RESOURCES_IGNORED);
-	}
-
 	public List<IResource> getInterestingResources(IInteractionContext context) {
 		List<IResource> interestingResources = new ArrayList<IResource>();
 		Collection<IInteractionElement> resourceElements = ContextCore.getContextManager().getActiveDocuments(context);
@@ -139,27 +139,6 @@ public class ResourcesUiBridgePlugin extends AbstractUIPlugin {
 			}
 		}
 		return interestingResources;
-	}
-
-	public void setExcludedResourcePatterns(Set<String> patterns) {
-		StringBuilder store = new StringBuilder();
-		for (String string : patterns) {
-			store.append(string);
-			store.append(PREF_STORE_DELIM);
-		}
-		getPreferenceStore().setValue(PREF_RESOURCES_IGNORED, store.toString());
-	}
-
-	public Set<String> getExcludedResourcePatterns() {
-		Set<String> ignored = new HashSet<String>();
-		String read = getPreferenceStore().getString(PREF_RESOURCES_IGNORED);
-		if (read != null) {
-			StringTokenizer st = new StringTokenizer(read, PREF_STORE_DELIM);
-			while (st.hasMoreTokens()) {
-				ignored.add(st.nextToken());
-			}
-		}
-		return ignored;
 	}
 
 	public static ResourceInterestUpdater getInterestUpdater() {
@@ -203,6 +182,11 @@ public class ResourcesUiBridgePlugin extends AbstractUIPlugin {
 	@Deprecated
 	public ResourceBundle getResourceBundle() {
 		return null;
+	}
+
+	private void updateResourceMonitorEnablement() {
+		resourceChangeMonitor.setEnabled(getPreferenceStore().getBoolean(
+				ResourcesUiPreferenceInitializer.PREF_RESOURCE_MONITOR_ENABLED));
 	}
 
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2009 David Green and others.
+ * Copyright (c) 2007, 2010 David Green and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -16,10 +16,11 @@ import junit.framework.TestCase;
 
 import org.eclipse.mylyn.wikitext.confluence.core.ConfluenceLanguage;
 import org.eclipse.mylyn.wikitext.core.parser.Attributes;
-import org.eclipse.mylyn.wikitext.core.parser.LinkAttributes;
-import org.eclipse.mylyn.wikitext.core.parser.MarkupParser;
 import org.eclipse.mylyn.wikitext.core.parser.DocumentBuilder.BlockType;
 import org.eclipse.mylyn.wikitext.core.parser.DocumentBuilder.SpanType;
+import org.eclipse.mylyn.wikitext.core.parser.LinkAttributes;
+import org.eclipse.mylyn.wikitext.core.parser.MarkupParser;
+import org.eclipse.mylyn.wikitext.tests.TestUtil;
 import org.eclipse.mylyn.wikitext.textile.core.TextileLanguage;
 
 /**
@@ -46,7 +47,7 @@ public class DocBookDocumentBuilderTest extends TestCase {
 	public void testInlineImage() {
 		parser.parse("some text !(inline)images/foo.png! some text");
 		String docbook = out.toString();
-		System.out.println("DocBook: \n" + docbook);
+		TestUtil.println("DocBook: \n" + docbook);
 		assertTrue(docbook.contains("<inlinemediaobject><imageobject><imagedata fileref=\"images/foo.png\"/></imageobject></inlinemediaobject>"));
 	}
 
@@ -54,15 +55,22 @@ public class DocBookDocumentBuilderTest extends TestCase {
 		parser.setMarkupLanguage(new ConfluenceLanguage());
 		parser.parse("some text {quote}quoted text{quote} some text");
 		String docbook = out.toString();
-		System.out.println("DocBook: \n" + docbook);
+		TestUtil.println("DocBook: \n" + docbook);
 		assertTrue(docbook.contains("<para>some text <quote>quoted text</quote> some text</para>"));
 	}
 
 	public void testImage() {
 		parser.parse("some text !images/foo.png! some text");
 		String docbook = out.toString();
-		System.out.println("DocBook: \n" + docbook);
+		TestUtil.println("DocBook: \n" + docbook);
 		assertTrue(docbook.contains("<mediaobject><imageobject><imagedata fileref=\"images/foo.png\"/></imageobject></mediaobject>"));
+	}
+
+	public void testImageWithScaling() {
+		parser.parse("some text !{width:80%}images/foo.png! some text");
+		String docbook = out.toString();
+		TestUtil.println("DocBook: \n" + docbook);
+		assertTrue(docbook.contains("<mediaobject><imageobject><imagedata fileref=\"images/foo.png\" scale=\"80\"/></imageobject></mediaobject>"));
 	}
 
 	public void testDefinitionList() {
@@ -89,7 +97,7 @@ public class DocBookDocumentBuilderTest extends TestCase {
 		builder.endDocument();
 
 		String docbook = out.toString();
-		System.out.println("DocBook: \n" + docbook);
+		TestUtil.println("DocBook: \n" + docbook);
 
 		assertTrue(docbook.contains("<variablelist><varlistentry><term>foo</term><listitem><para>Foo definition</para></listitem></varlistentry><varlistentry><term>bar</term><listitem><para>Bar definition</para></listitem></varlistentry></variablelist>"));
 	}
@@ -99,7 +107,7 @@ public class DocBookDocumentBuilderTest extends TestCase {
 		parser.parse("ABW(A Better Way) is not NIMBY(Not In My Back Yard)\n\n{glossary}");
 
 		String docbook = out.toString();
-		System.out.println("DocBook: \n" + docbook);
+		TestUtil.println("DocBook: \n" + docbook);
 
 		assertTrue(docbook.contains("<variablelist><varlistentry><term>ABW</term><listitem><para>A Better Way</para></listitem></varlistentry><varlistentry><term>NIMBY</term><listitem><para>Not In My Back Yard</para></listitem></varlistentry></variablelist>"));
 	}
@@ -134,7 +142,7 @@ public class DocBookDocumentBuilderTest extends TestCase {
 		builder.endDocument();
 
 		String docbook = out.toString();
-		System.out.println("DocBook: \n" + docbook);
+		TestUtil.println("DocBook: \n" + docbook);
 
 		// should look something like this:
 
@@ -172,7 +180,7 @@ public class DocBookDocumentBuilderTest extends TestCase {
 		builder.endDocument();
 
 		String docbook = out.toString();
-		System.out.println("DocBook: \n" + docbook);
+		TestUtil.println("DocBook: \n" + docbook);
 
 		assertTrue(docbook.contains("<book><title></title><chapter><title></title><para>foo</para><para>bar</para></chapter></book>"));
 	}
@@ -195,7 +203,7 @@ public class DocBookDocumentBuilderTest extends TestCase {
 		builder.endDocument();
 
 		String docbook = out.toString();
-		System.out.println("DocBook: \n" + docbook);
+		TestUtil.println("DocBook: \n" + docbook);
 
 		assertTrue(docbook.contains("<book><title></title><chapter><title></title><para><link linkend=\"test1234\"><emphasis>link text</emphasis></link></para></chapter></book>"));
 	}

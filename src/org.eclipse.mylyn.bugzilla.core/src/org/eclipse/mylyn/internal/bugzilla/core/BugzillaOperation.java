@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2008 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -35,7 +35,9 @@ public enum BugzillaOperation {
 
 	verify(Messages.BugzillaOperation_Mark_as_VERIFIED),
 
-	close(Messages.BugzillaOperation_Mark_as_CLOSED);
+	close(Messages.BugzillaOperation_Mark_as_CLOSED),
+
+	markNew(Messages.BugzillaOperation_Mark_as_NEW);
 
 	private final String label;
 

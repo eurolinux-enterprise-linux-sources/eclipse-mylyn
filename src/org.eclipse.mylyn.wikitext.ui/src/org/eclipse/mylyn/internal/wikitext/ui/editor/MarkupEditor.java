@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2009 David Green and others.
+ * Copyright (c) 2007, 2010 David Green and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -39,6 +39,7 @@ import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.action.IMenuManager;
 import org.eclipse.jface.action.MenuManager;
 import org.eclipse.jface.commands.ActionHandler;
+import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.jface.text.DocumentEvent;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IDocumentListener;
@@ -120,8 +121,6 @@ import org.eclipse.ui.texteditor.ContentAssistAction;
 import org.eclipse.ui.texteditor.ITextEditorActionConstants;
 import org.eclipse.ui.texteditor.ITextEditorActionDefinitionIds;
 import org.eclipse.ui.views.contentoutline.IContentOutlinePage;
-
-
 
 /**
  * A text editor for editing lightweight markup. Can be configured to accept any {@link MarkupLanguage}, with pluggable
@@ -221,7 +220,7 @@ public class MarkupEditor extends TextEditor implements IShowInTarget, IShowInSo
 
 	@Override
 	protected ISourceViewer createSourceViewer(Composite parent, IVerticalRuler ruler, int styles) {
-
+		sourceViewerConfiguration.initializeDefaultFonts();
 		tabFolder = new CTabFolder(parent, SWT.BOTTOM);
 
 		{
@@ -231,7 +230,7 @@ public class MarkupEditor extends TextEditor implements IShowInTarget, IShowInSo
 			viewer = new MarkupProjectionViewer(tabFolder, ruler, getOverviewRuler(), isOverviewRulerVisible(), styles
 					| SWT.WRAP);
 
-			sourceTab.setControl(viewer instanceof Viewer ? ((Viewer) viewer).getControl() : viewer.getTextWidget());
+			sourceTab.setControl(((Viewer) viewer).getControl());
 			tabFolder.setSelection(sourceTab);
 		}
 
@@ -281,7 +280,7 @@ public class MarkupEditor extends TextEditor implements IShowInTarget, IShowInSo
 			}
 
 			public void widgetSelected(SelectionEvent selectionevent) {
-				if (tabFolder.getSelection() == previewTab) {
+				if (isShowingPreview()) {
 					updatePreview(getNearestMatchingOutlineItem());
 				}
 			}
@@ -342,11 +341,13 @@ public class MarkupEditor extends TextEditor implements IShowInTarget, IShowInSo
 					if (viewer.getTextWidget().isDisposed()) {
 						return;
 					}
-					viewer.getTextWidget().getDisplay().asyncExec(new Runnable() {
-						public void run() {
-							reloadPreferences();
-						}
-					});
+					if (isFontPreferenceChange(event)) {
+						viewer.getTextWidget().getDisplay().asyncExec(new Runnable() {
+							public void run() {
+								reloadPreferences();
+							}
+						});
+					}
 				}
 			};
 			WikiTextUiPlugin.getDefault().getPreferenceStore().addPropertyChangeListener(preferencesListener);
@@ -385,13 +386,29 @@ public class MarkupEditor extends TextEditor implements IShowInTarget, IShowInSo
 		if (!outlineDirty && isFoldingEnabled()) {
 			updateProjectionAnnotations();
 		}
+		JFaceResources.getFontRegistry().addListener(preferencesListener);
 	}
 
 	private void reloadPreferences() {
 		previewDirty = true;
 		syncProjectionModeWithPreferences();
 		((MarkupTokenScanner) sourceViewerConfiguration.getMarkupScanner()).reloadPreferences();
+		sourceViewerConfiguration.initializeDefaultFonts();
 		viewer.invalidateTextPresentation();
+	}
+
+	private boolean isFontPreferenceChange(PropertyChangeEvent event) {
+		if (event.getProperty().equals(sourceViewerConfiguration.getFontPreference())
+				|| event.getProperty().equals(sourceViewerConfiguration.getMonospaceFontPreference())) {
+			return true;
+		}
+		return false;
+	}
+
+	@Override
+	protected void handlePreferenceStoreChanged(PropertyChangeEvent event) {
+		super.handlePreferenceStoreChanged(event);
+		reloadPreferences();
 	}
 
 	private void syncProjectionModeWithPreferences() {
@@ -428,6 +445,7 @@ public class MarkupEditor extends TextEditor implements IShowInTarget, IShowInSo
 		}
 		if (preferencesListener != null) {
 			WikiTextUiPlugin.getDefault().getPreferenceStore().removePropertyChangeListener(preferencesListener);
+			JFaceResources.getFontRegistry().addListener(preferencesListener);
 			preferencesListener = null;
 		}
 		super.dispose();
@@ -479,6 +497,9 @@ public class MarkupEditor extends TextEditor implements IShowInTarget, IShowInSo
 								++documentGeneration;
 							}
 							scheduleOutlineUpdate();
+							if (isShowingPreview()) {
+								updatePreview(null);
+							}
 						}
 
 					};
@@ -509,10 +530,8 @@ public class MarkupEditor extends TextEditor implements IShowInTarget, IShowInSo
 				xhtml = "<?xml version=\"1.0\" ?><html xmlns=\"http://www.w3.org/1999/xhtml\"><body></body></html>"; //$NON-NLS-1$
 			} else {
 				try {
-					MarkupParser markupParser = new MarkupParser();
-
 					IFile file = getFile();
-					String title = file.getName();
+					String title = file == null ? "" : file.getName(); //$NON-NLS-1$
 					if (title.lastIndexOf('.') != -1) {
 						title = title.substring(0, title.lastIndexOf('.'));
 					}
@@ -531,7 +550,7 @@ public class MarkupEditor extends TextEditor implements IShowInTarget, IShowInSo
 					};
 					builder.setTitle(title);
 
-					IPath location = file.getLocation();
+					IPath location = file == null ? null : file.getLocation();
 					if (location != null) {
 						builder.setBaseInHead(true);
 						builder.setBase(location.removeLastSegments(1).toFile().toURI());
@@ -542,18 +561,24 @@ public class MarkupEditor extends TextEditor implements IShowInTarget, IShowInSo
 						builder.addCssStylesheet(new HtmlDocumentBuilder.Stylesheet(new StringReader(css)));
 					}
 
-					markupParser.setBuilder(builder);
-					markupParser.setMarkupLanguage(getMarkupLanguage());
-					if (markupParser.getMarkupLanguage() == null) {
+					MarkupLanguage markupLanguage = getMarkupLanguage();
+					if (markupLanguage != null) {
+						markupLanguage = markupLanguage.clone();
+						markupLanguage.setEnableMacros(true);
+						markupLanguage.setBlocksOnly(false);
+						markupLanguage.setFilterGenerativeContents(false);
+
+						MarkupParser markupParser = new MarkupParser();
+						markupParser.setBuilder(builder);
+						markupParser.setMarkupLanguage(markupLanguage);
+
+						markupParser.parse(document.get());
+					} else {
 						builder.beginDocument();
 						builder.beginBlock(BlockType.PREFORMATTED, new Attributes());
 						builder.characters(document.get());
 						builder.endBlock();
 						builder.endDocument();
-					} else {
-						markupParser.getMarkupLanguage().setBlocksOnly(false);
-						markupParser.getMarkupLanguage().setFilterGenerativeContents(false);
-						markupParser.parse(document.get());
 					}
 					xhtml = writer.toString();
 				} catch (Exception e) {
@@ -570,7 +595,7 @@ public class MarkupEditor extends TextEditor implements IShowInTarget, IShowInSo
 					builder.endBlock();
 					builder.endDocument();
 
-					xhtml = writer.toString();
+					xhtml = documentWriter.toString();
 				}
 			}
 			if (revealItem) {
@@ -600,7 +625,7 @@ public class MarkupEditor extends TextEditor implements IShowInTarget, IShowInSo
 		return null;
 	}
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("rawtypes")
 	@Override
 	public Object getAdapter(Class adapter) {
 		if (IContentOutlinePage.class == adapter) {
@@ -962,6 +987,9 @@ public class MarkupEditor extends TextEditor implements IShowInTarget, IShowInSo
 	}
 
 	public void setMarkupLanguage(MarkupLanguage markupLanguage, boolean persistSetting) {
+		if (markupLanguage != null) {
+			markupLanguage.setEnableMacros(false);
+		}
 		((MarkupDocumentProvider) getDocumentProvider()).setMarkupLanguage(markupLanguage);
 
 		IDocument document = getDocumentProvider().getDocument(getEditorInput());
@@ -1031,7 +1059,6 @@ public class MarkupEditor extends TextEditor implements IShowInTarget, IShowInSo
 	 * 
 	 * @param file
 	 *            the file for which the preference should be looked up
-	 * 
 	 * @return the markup language preference, or null if it was not set or could not be loaded.
 	 */
 	public static MarkupLanguage loadMarkupLanguagePreference(IFile file) {
@@ -1047,7 +1074,6 @@ public class MarkupEditor extends TextEditor implements IShowInTarget, IShowInSo
 	 * 
 	 * @param file
 	 *            the file for which the preference should be looked up
-	 * 
 	 * @return the markup language name, or null if no preference exists
 	 */
 	public static String getMarkupLanguagePreference(IFile file) {
@@ -1069,7 +1095,7 @@ public class MarkupEditor extends TextEditor implements IShowInTarget, IShowInSo
 		IFile file = getFile();
 		if (file != null) {
 			MarkupLanguage defaultMarkupLanguage = WikiText.getMarkupLanguageForFilename(file.getName());
-			String preference = markupLanguage == null ? null : markupLanguage.getName();
+			String preference = markupLanguage.getName();
 			if (defaultMarkupLanguage != null && defaultMarkupLanguage.getName().equals(preference)) {
 				preference = null;
 			}
@@ -1077,11 +1103,8 @@ public class MarkupEditor extends TextEditor implements IShowInTarget, IShowInSo
 				file.setPersistentProperty(new QualifiedName(WikiTextUiPlugin.getDefault().getPluginId(),
 						MARKUP_LANGUAGE), preference);
 			} catch (CoreException e) {
-				WikiTextUiPlugin.getDefault()
-						.log(
-								IStatus.ERROR,
-								NLS.bind(Messages.MarkupEditor_markupPreferenceError2,
-										new Object[] { preference }), e);
+				WikiTextUiPlugin.getDefault().log(IStatus.ERROR,
+						NLS.bind(Messages.MarkupEditor_markupPreferenceError2, new Object[] { preference }), e);
 			}
 		}
 	}
@@ -1170,7 +1193,7 @@ public class MarkupEditor extends TextEditor implements IShowInTarget, IShowInSo
 
 	public void selectAndReveal(OutlineItem item) {
 		selectAndReveal(item.getOffset(), item.getLength());
-		if (tabFolder.getSelection() == previewTab) {
+		if (isShowingPreview()) {
 			// scroll preview to the selected item.
 			revealInBrowser(item);
 		}
@@ -1208,4 +1231,7 @@ public class MarkupEditor extends TextEditor implements IShowInTarget, IShowInSo
 		updateOutlineSelection();
 	}
 
+	private boolean isShowingPreview() {
+		return tabFolder.getSelection() == previewTab;
+	}
 }

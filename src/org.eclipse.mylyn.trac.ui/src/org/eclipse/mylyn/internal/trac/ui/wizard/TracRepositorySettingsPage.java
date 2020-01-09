@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2009 Steffen Pingel and others.
+ * Copyright (c) 2006, 2010 Steffen Pingel and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -23,6 +23,7 @@ import org.eclipse.mylyn.commons.core.StatusHandler;
 import org.eclipse.mylyn.commons.net.AbstractWebLocation;
 import org.eclipse.mylyn.commons.net.AuthenticationCredentials;
 import org.eclipse.mylyn.commons.net.AuthenticationType;
+import org.eclipse.mylyn.internal.tasks.core.IRepositoryConstants;
 import org.eclipse.mylyn.internal.trac.core.TracClientFactory;
 import org.eclipse.mylyn.internal.trac.core.TracCorePlugin;
 import org.eclipse.mylyn.internal.trac.core.client.ITracClient;
@@ -155,12 +156,18 @@ public class TracRepositorySettingsPage extends AbstractRepositorySettingsPage {
 
 	@Override
 	protected void applyValidatorResult(Validator validator) {
-		super.applyValidatorResult(validator);
-
 		if (((TracValidator) validator).getResult() != null) {
 			setTracVersion(((TracValidator) validator).getResult());
 			getContainer().updateButtons();
 		}
+		super.applyValidatorResult(validator);
+	}
+
+	@SuppressWarnings("restriction")
+	@Override
+	public void applyTo(TaskRepository repository) {
+		super.applyTo(repository);
+		repository.setProperty(IRepositoryConstants.PROPERTY_CATEGORY, IRepositoryConstants.CATEGORY_BUGS);
 	}
 
 	// public for testing

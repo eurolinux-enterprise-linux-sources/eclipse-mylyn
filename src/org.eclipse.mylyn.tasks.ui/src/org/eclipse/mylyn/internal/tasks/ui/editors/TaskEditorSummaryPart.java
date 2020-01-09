@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -16,8 +16,8 @@ import org.eclipse.jface.layout.GridDataFactory;
 import org.eclipse.jface.layout.GridLayoutFactory;
 import org.eclipse.mylyn.internal.provisional.commons.ui.CommonImages;
 import org.eclipse.mylyn.internal.tasks.ui.util.TasksUiInternal;
-import org.eclipse.mylyn.tasks.core.ITaskMapping;
 import org.eclipse.mylyn.tasks.core.ITask.PriorityLevel;
+import org.eclipse.mylyn.tasks.core.ITaskMapping;
 import org.eclipse.mylyn.tasks.core.data.TaskAttribute;
 import org.eclipse.mylyn.tasks.ui.editors.AbstractAttributeEditor;
 import org.eclipse.mylyn.tasks.ui.editors.AbstractTaskEditorPart;
@@ -118,7 +118,11 @@ public class TaskEditorSummaryPart extends AbstractTaskEditorPart {
 	}
 
 	private void addSummaryText(Composite composite, final FormToolkit toolkit) {
-		summaryEditor = createAttributeEditor(getTaskData().getRoot().getMappedAttribute(TaskAttribute.SUMMARY));
+		TaskAttribute summaryAttrib = getTaskData().getRoot().getMappedAttribute(TaskAttribute.SUMMARY);
+		summaryEditor = createAttributeEditor(summaryAttrib);
+		if (summaryAttrib.getMetaData().isReadOnly()) {
+			summaryEditor.setReadOnly(true);
+		}
 		if (summaryEditor != null) {
 			if (summaryEditor instanceof RichTextAttributeEditor) {
 				// create composite to hold rounded border

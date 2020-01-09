@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2008 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -46,8 +46,8 @@ public class InteractionContextElement implements IInteractionElement {
 			throw new RuntimeException("malformed context: null handle"); //$NON-NLS-1$
 		}
 		interest = new DegreeOfInterest(context, context.getScaling(), eventCountOnCreation);
-		this.handle = elementHandle;
-		this.kind = kind;
+		this.handle = elementHandle.intern();
+		this.kind = (kind != null) ? kind.intern() : null;
 		this.context = context;
 	}
 

@@ -17,9 +17,9 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.StringTokenizer;
-import java.util.Map.Entry;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -32,15 +32,15 @@ import org.eclipse.mylyn.internal.trac.core.model.TracAction;
 import org.eclipse.mylyn.internal.trac.core.model.TracAttachment;
 import org.eclipse.mylyn.internal.trac.core.model.TracComment;
 import org.eclipse.mylyn.internal.trac.core.model.TracTicket;
-import org.eclipse.mylyn.internal.trac.core.model.TracTicketField;
 import org.eclipse.mylyn.internal.trac.core.model.TracTicket.Key;
+import org.eclipse.mylyn.internal.trac.core.model.TracTicketField;
 import org.eclipse.mylyn.internal.trac.core.util.TracUtil;
 import org.eclipse.mylyn.tasks.core.ITask;
 import org.eclipse.mylyn.tasks.core.ITaskMapping;
 import org.eclipse.mylyn.tasks.core.RepositoryResponse;
+import org.eclipse.mylyn.tasks.core.RepositoryResponse.ResponseKind;
 import org.eclipse.mylyn.tasks.core.RepositoryStatus;
 import org.eclipse.mylyn.tasks.core.TaskRepository;
-import org.eclipse.mylyn.tasks.core.RepositoryResponse.ResponseKind;
 import org.eclipse.mylyn.tasks.core.data.AbstractTaskDataHandler;
 import org.eclipse.mylyn.tasks.core.data.TaskAttachmentMapper;
 import org.eclipse.mylyn.tasks.core.data.TaskAttribute;
@@ -56,6 +56,10 @@ import org.eclipse.osgi.util.NLS;
  * @author Steffen Pingel
  */
 public class TracTaskDataHandler extends AbstractTaskDataHandler {
+
+	private static final String TASK_TYPE_TASK = "task"; //$NON-NLS-1$
+
+	public static final String TASK_TYPE_STORY = "story"; //$NON-NLS-1$
 
 	private static final String TASK_DATA_VERSION = "2"; //$NON-NLS-1$
 
@@ -294,6 +298,8 @@ public class TracTaskDataHandler extends AbstractTaskDataHandler {
 			TaskAttribute attribute = createAttribute(data, client, TracAttribute.RESOLUTION);
 			// reset default value to avoid "fixed" resolution on tasks created through web 
 			attribute.setValue(""); //$NON-NLS-1$
+			// internal attributes
+			createAttribute(data, null, TracAttribute.TOKEN);
 		}
 		createAttribute(data, client, TracAttribute.COMPONENT);
 		createAttribute(data, client, TracAttribute.VERSION);
@@ -318,11 +324,17 @@ public class TracTaskDataHandler extends AbstractTaskDataHandler {
 		}
 		createAttribute(data, client, TracAttribute.CC);
 		if (existingTask) {
-			data.getRoot().createAttribute(TracAttributeMapper.NEW_CC).getMetaData().setType(
-					TaskAttribute.TYPE_SHORT_TEXT).setReadOnly(false);
+			data.getRoot()
+					.createAttribute(TracAttributeMapper.NEW_CC)
+					.getMetaData()
+					.setType(TaskAttribute.TYPE_SHORT_TEXT)
+					.setReadOnly(false);
 			data.getRoot().createAttribute(TracAttributeMapper.REMOVE_CC);
-			data.getRoot().createAttribute(TaskAttribute.COMMENT_NEW).getMetaData().setType(
-					TaskAttribute.TYPE_LONG_RICH_TEXT).setReadOnly(false);
+			data.getRoot()
+					.createAttribute(TaskAttribute.COMMENT_NEW)
+					.getMetaData()
+					.setType(TaskAttribute.TYPE_LONG_RICH_TEXT)
+					.setReadOnly(false);
 		}
 		// operations
 		data.getRoot().createAttribute(TaskAttribute.OPERATION).getMetaData().setType(TaskAttribute.TYPE_OPERATION);
@@ -488,6 +500,13 @@ public class TracTaskDataHandler extends AbstractTaskDataHandler {
 		if (blockedByAttribute != null) {
 			blockedByAttribute.clearValues();
 		}
+		// special handling for stories which should have tasks as subtasks
+		TaskAttribute typeAttribute = taskData.getRoot().getAttribute(TracAttribute.TYPE.getTracKey());
+		if (typeAttribute != null && TASK_TYPE_STORY.equals(typeAttribute.getValue())) {
+			if (typeAttribute.getOptions().containsKey(TASK_TYPE_TASK)) {
+				typeAttribute.setValue(TASK_TYPE_TASK);
+			}
+		}
 		return true;
 	}
 
@@ -549,7 +568,7 @@ public class TracTaskDataHandler extends AbstractTaskDataHandler {
 			if (TracAttributeMapper.isInternalAttribute(attribute)
 					|| TracAttribute.RESOLUTION.getTracKey().equals(attribute.getId())) {
 				// ignore internal attributes, resolution is set through operations
-			} else if (!attribute.getMetaData().isReadOnly()) {
+			} else if (!attribute.getMetaData().isReadOnly() || Key.TOKEN.getKey().equals(attribute.getId())) {
 				ticket.putValue(attribute.getId(), attribute.getValue());
 			}
 		}
@@ -602,6 +621,10 @@ public class TracTaskDataHandler extends AbstractTaskDataHandler {
 			}
 			ticket.putValue("action", action); //$NON-NLS-1$
 		}
+
+		Date lastChanged = TracUtil.parseDate(TracRepositoryConnector.getAttributeValue(data,
+				TracAttribute.CHANGE_TIME.getTracKey()));
+		ticket.setLastChanged(lastChanged);
 
 		return ticket;
 	}

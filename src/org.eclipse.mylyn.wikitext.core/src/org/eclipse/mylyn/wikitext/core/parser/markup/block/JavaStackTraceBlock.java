@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2009 David Green and others.
+ * Copyright (c) 2009, 2010 David Green and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -38,7 +38,7 @@ public class JavaStackTraceBlock extends Block {
 	private static final String FQN_PART = PACKAGE_PART + "(\\." + PACKAGE_PART + ")*\\." + CLASS_PART; //$NON-NLS-1$ //$NON-NLS-2$
 
 	private static final Pattern STACK_TRACE_PATTERN = Pattern.compile("\\s*((" + "((Caused by:\\s+)|(at\\s+))?" //$NON-NLS-1$//$NON-NLS-2$
-			+ FQN_PART + "((:\\s+\\w.*)|(\\.((\\<init\\>)|([a-zA-Z0-9_$]+))\\(.*?\\)))?" //$NON-NLS-1$
+			+ FQN_PART + "((:\\s+\\w.*)|(\\.((\\<(?:cl)?init\\>)|([a-zA-Z0-9_$]+))\\(.*?\\)))?" //$NON-NLS-1$
 			+ ")|(\\.\\.\\.\\s\\d+\\smore))"); //$NON-NLS-1$ 
 
 	private int blockLineCount = 0;

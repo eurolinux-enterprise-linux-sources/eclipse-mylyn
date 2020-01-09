@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2009 David Green and others.
+ * Copyright (c) 2007, 2010 David Green and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -12,14 +12,14 @@ package org.eclipse.mylyn.internal.wikitext.confluence.core.phrase;
 
 import org.eclipse.mylyn.internal.wikitext.confluence.core.util.Options;
 import org.eclipse.mylyn.internal.wikitext.confluence.core.util.Options.Handler;
+import org.eclipse.mylyn.wikitext.core.parser.Attributes;
 import org.eclipse.mylyn.wikitext.core.parser.ImageAttributes;
+import org.eclipse.mylyn.wikitext.core.parser.DocumentBuilder.BlockType;
 import org.eclipse.mylyn.wikitext.core.parser.ImageAttributes.Align;
 import org.eclipse.mylyn.wikitext.core.parser.markup.PatternBasedElement;
 import org.eclipse.mylyn.wikitext.core.parser.markup.PatternBasedElementProcessor;
 
 /**
- * 
- * 
  * @author David Green
  */
 public class ImagePhraseModifier extends PatternBasedElement {
@@ -87,7 +87,17 @@ public class ImagePhraseModifier extends PatternBasedElement {
 					}
 				});
 			}
-			builder.image(attributes, imageUrl);
+			if (attributes.getAlign() == Align.Center) {
+				// bug 293573: confluence centers images using div
+				Attributes divAttributes = new Attributes();
+				divAttributes.setCssStyle("text-align: center;"); //$NON-NLS-1$
+				builder.beginBlock(BlockType.DIV, divAttributes);
+				attributes.setAlign(null);
+				builder.image(attributes, imageUrl);
+				builder.endBlock();
+			} else {
+				builder.image(attributes, imageUrl);
+			}
 		}
 	}
 

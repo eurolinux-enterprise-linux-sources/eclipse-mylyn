@@ -15,10 +15,12 @@ import junit.framework.Test;
 import junit.framework.TestSuite;
 
 import org.eclipse.mylyn.bugzilla.tests.support.BugzillaFixture;
+import org.eclipse.mylyn.bugzilla.tests.ui.BugzillaHyperlinkDetectorTest;
 import org.eclipse.mylyn.bugzilla.tests.ui.BugzillaRepositorySettingsPageTest;
 import org.eclipse.mylyn.bugzilla.tests.ui.BugzillaSearchPageTest;
 import org.eclipse.mylyn.bugzilla.tests.ui.BugzillaTaskHyperlinkDetectorTest;
 import org.eclipse.mylyn.bugzilla.tests.ui.TaskEditorTest;
+import org.eclipse.mylyn.internal.bugzilla.core.BugzillaVersion;
 
 /**
  * @author Mik Kersten
@@ -27,27 +29,48 @@ public class AllBugzillaTests {
 
 	public static Test suite() {
 		TestSuite suite = new TestSuite("Tests for org.eclipse.mylyn.bugzilla.tests");
+
+		// Standalone tests (Don't require an instance of Eclipse)
 		suite.addTest(AllBugzillaHeadlessStandaloneTests.suite());
 
+		// Tests that only need to run once (i.e. no network io so doesn't matter which repository)
+		suite.addTestSuite(TaskEditorTest.class);
+		suite.addTestSuite(BugzillaRepositorySettingsPageTest.class);
+		suite.addTestSuite(BugzillaSearchPageTest.class);
+		suite.addTestSuite(BugzillaDateTimeTests.class);
+		suite.addTestSuite(BugzillaTaskHyperlinkDetectorTest.class);
+		suite.addTestSuite(BugzillaHyperlinkDetectorTest.class);
+
+		// Each of these tests gets executed against every repo in BugzillaFixture.ALL
+		// unless otherwise excluded
 		for (BugzillaFixture fixture : BugzillaFixture.ALL) {
 			fixture.createSuite(suite);
-			// only run certain tests against head to avoid spurious failures 
+			fixture.add(RepositoryReportFactoryTest.class);
+			fixture.add(BugzillaTaskDataHandlerTest.class);
+			fixture.add(BugzillaSearchTest.class);
+			fixture.add(EncodingTest.class);
+
+			// Move any tests here that are resulting in spurious failures
+			// due to recent changes in Bugzilla Server head.
 			if (fixture != BugzillaFixture.BUGS_HEAD) {
-				fixture.add(BugzillaTaskDataHandlerTest.class);
-				fixture.add(TaskEditorTest.class);
-				fixture.add(BugzillaRepositorySettingsPageTest.class);
-				fixture.add(RepositoryReportFactoryTest.class);
-				fixture.add(BugzillaTaskHyperlinkDetectorTest.class);
-				fixture.add(BugzillaSearchTest.class);
-				fixture.add(BugzillaRepositoryConnectorTest.class);
-				fixture.add(BugzillaAttachmentHandlerTest.class);
-				fixture.add(EncodingTest.class);
-				fixture.add(BugzillaSearchPageTest.class);
-				fixture.add(BugzillaRepository32Test.class);
-				fixture.add(BugzillaDateTimeTests.class);
 			}
+
+			// Only run these tests on > 3.2 repositories
+			if (!fixture.getBugzillaVersion().isSmallerOrEquals(BugzillaVersion.BUGZILLA_3_2)) {
+				if (fixture != BugzillaFixture.BUGS_HEAD) {
+					fixture.add(BugzillaRepositoryConnectorTest.class);
+				}
+				fixture.add(BugzillaAttachmentHandlerTest.class);
+			}
+
 			fixture.done();
 		}
+		// TODO 3.5 re-enable tests
+//		for (BugzillaFixture fixture : BugzillaFixture.ONLY_3_6_SPECIFIC) {
+//			fixture.createSuite(suite);
+//			fixture.add(BugzillaXmlRpcClientTest.class);
+//			fixture.done();
+//		}
 
 		return suite;
 	}

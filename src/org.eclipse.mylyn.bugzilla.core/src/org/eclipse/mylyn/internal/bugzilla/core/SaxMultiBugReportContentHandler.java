@@ -11,6 +11,8 @@
 
 package org.eclipse.mylyn.internal.bugzilla.core;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -18,7 +20,6 @@ import java.util.Locale;
 import java.util.Map;
 
 import org.eclipse.mylyn.tasks.core.IRepositoryPerson;
-import org.eclipse.mylyn.tasks.core.data.TaskAttachmentMapper;
 import org.eclipse.mylyn.tasks.core.data.TaskAttribute;
 import org.eclipse.mylyn.tasks.core.data.TaskAttributeMapper;
 import org.eclipse.mylyn.tasks.core.data.TaskCommentMapper;
@@ -75,6 +76,8 @@ public class SaxMultiBugReportContentHandler extends DefaultHandler {
 	private boolean bugParseErrorOccurred;
 
 	private final BugzillaRepositoryConnector connector;
+
+	private final SimpleDateFormat simpleFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm"); //$NON-NLS-1$
 
 	public SaxMultiBugReportContentHandler(TaskAttributeMapper mapper, TaskDataCollector collector,
 			Map<String, TaskData> taskDataMap, List<BugzillaCustomField> customFields,
@@ -342,7 +345,14 @@ public class SaxMultiBugReportContentHandler extends DefaultHandler {
 			attachment.setToken(null);
 			break;
 		case DATE:
-			// ignore
+			if (attachment != null) {
+				try {
+					attachment.setCreationDate(simpleFormatter.parse(parsedText));
+					break;
+				} catch (ParseException e) {
+				} catch (NumberFormatException e) {
+				}
+			}
 			break;
 		case DESC:
 			if (attachment != null) {
@@ -445,6 +455,16 @@ public class SaxMultiBugReportContentHandler extends DefaultHandler {
 				}
 			}
 			break;
+		case DUP_ID:
+			TaskAttribute duplicateOf = repositoryTaskData.getRoot().getMappedAttribute(tag.getKey());
+			if (duplicateOf == null) {
+				BugzillaTaskDataHandler.createAttribute(repositoryTaskData, tag).setValue(parsedText);
+			} else {
+				if (duplicateOf.getValue().equals("")) { //$NON-NLS-1$
+					duplicateOf.setValue(parsedText);
+				}
+			}
+			break;
 		case UNKNOWN:
 			//ignore
 			break;
@@ -456,6 +476,14 @@ public class SaxMultiBugReportContentHandler extends DefaultHandler {
 				attachment.setToken(parsedText);
 			} else {
 				token = parsedText;
+			}
+			break;
+		case ATTACHER:
+			if (attachment != null) {
+				IRepositoryPerson author = repositoryTaskData.getAttributeMapper().getTaskRepository().createPerson(
+						parsedText);
+				author.setName(parsedText);
+				attachment.setAuthor(author);
 			}
 			break;
 		default:
@@ -521,11 +549,13 @@ public class SaxMultiBugReportContentHandler extends DefaultHandler {
 		List<TaskAttribute> taskAttachments = repositoryTaskData.getAttributeMapper().getAttributesByType(
 				repositoryTaskData, TaskAttribute.TYPE_ATTACHMENT);
 		for (TaskAttribute attachment : taskAttachments) {
-			TaskAttachmentMapper attachmentMapper = TaskAttachmentMapper.createFrom(attachment);
-			TaskCommentMapper taskComment = attachIdToComment.get(attachmentMapper.getAttachmentId());
-			if (taskComment != null) {
-				attachmentMapper.setAuthor(taskComment.getAuthor());
-				attachmentMapper.setCreationDate(taskComment.getCreationDate());
+			BugzillaAttachmentMapper attachmentMapper = BugzillaAttachmentMapper.createFrom(attachment);
+			if (attachmentMapper.getAuthor() == null || attachmentMapper.getCreationDate() == null) {
+				TaskCommentMapper taskComment = attachIdToComment.get(attachmentMapper.getAttachmentId());
+				if (taskComment != null) {
+					attachmentMapper.setAuthor(taskComment.getAuthor());
+					attachmentMapper.setCreationDate(taskComment.getCreationDate());
+				}
 			}
 			attachmentMapper.setUrl(repositoryTaskData.getRepositoryUrl()
 					+ IBugzillaConstants.URL_GET_ATTACHMENT_SUFFIX + attachmentMapper.getAttachmentId());

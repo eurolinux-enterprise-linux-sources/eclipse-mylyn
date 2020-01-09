@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2006, 2009 Steffen Pingel and others.
+ * Copyright (c) 2006, 2010 Steffen Pingel and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -15,7 +15,6 @@ package org.eclipse.mylyn.internal.trac.core.util;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.Date;
-import java.util.Map;
 
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.mylyn.internal.trac.core.TracCorePlugin;
@@ -89,43 +88,6 @@ public class TracUtil {
 			return URLEncoder.encode(string, ITracClient.CHARSET).replaceAll("\\+", "%20"); //$NON-NLS-1$ //$NON-NLS-2$
 		} catch (UnsupportedEncodingException e) {
 			return string;
-		}
-	}
-
-	public static String toString(Object object) {
-		StringBuilder sb = new StringBuilder();
-		toString(sb, object);
-		return sb.toString();
-	}
-
-	public static void toString(StringBuilder sb, Object object) {
-		if (object instanceof Object[]) {
-			sb.append("["); //$NON-NLS-1$
-			Object[] entries = (Object[]) object;
-			boolean prependSeparator = false;
-			for (Object entry : entries) {
-				if (prependSeparator) {
-					sb.append(", "); //$NON-NLS-1$
-				}
-				toString(sb, entry);
-				prependSeparator = true;
-			}
-			sb.append("]"); //$NON-NLS-1$
-		} else if (object instanceof Map<?, ?>) {
-			sb.append("{"); //$NON-NLS-1$
-			boolean prependSeparator = false;
-			for (Map.Entry<?, ?> entry : ((Map<?, ?>) object).entrySet()) {
-				if (prependSeparator) {
-					sb.append(", "); //$NON-NLS-1$
-				}
-				toString(sb, entry.getKey());
-				sb.append("="); //$NON-NLS-1$
-				toString(sb, entry.getValue());
-				prependSeparator = true;
-			}
-			sb.append("}"); //$NON-NLS-1$
-		} else {
-			sb.append(object);
 		}
 	}
 

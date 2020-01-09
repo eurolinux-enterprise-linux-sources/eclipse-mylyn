@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2004, 2009 Tasktop Technologies and others.
+ * Copyright (c) 2004, 2010 Tasktop Technologies and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -18,6 +18,7 @@ import org.eclipse.core.runtime.Status;
 import org.eclipse.mylyn.tasks.core.AbstractRepositoryConnector;
 import org.eclipse.mylyn.tasks.core.IRepositoryQuery;
 import org.eclipse.mylyn.tasks.core.ITask;
+import org.eclipse.mylyn.tasks.core.TaskMigrationEvent;
 import org.eclipse.mylyn.tasks.core.TaskRepository;
 import org.eclipse.mylyn.tasks.core.data.AbstractTaskAttachmentHandler;
 import org.eclipse.mylyn.tasks.core.data.TaskData;
@@ -33,13 +34,19 @@ import org.eclipse.mylyn.tasks.ui.TasksUi;
  */
 public class MockRepositoryConnector extends AbstractRepositoryConnector {
 
-	// TODO 3.4 rename to CONNECTOR_KIND
-	public static final String REPOSITORY_KIND = "mock";
+	public static final String CONNECTOR_KIND = "mock";
+
+	/**
+	 * @deprecated Use {@link #CONNECTOR_KIND} instead
+	 */
+	// TODO 3.5 remove
+	@Deprecated
+	public static final String REPOSITORY_KIND = CONNECTOR_KIND;
 
 	public static final String REPOSITORY_URL = "http://mockrepository.test";
 
 	public static MockRepositoryConnector getDefault() {
-		return (MockRepositoryConnector) TasksUi.getRepositoryConnector(REPOSITORY_KIND);
+		return (MockRepositoryConnector) TasksUi.getRepositoryConnector(CONNECTOR_KIND);
 	}
 
 	private AbstractTaskAttachmentHandler attachmentHandler;
@@ -53,6 +60,8 @@ public class MockRepositoryConnector extends AbstractRepositoryConnector {
 	private boolean hasLocalCompletionState;
 
 	private String taskIdPrefix = "task";
+
+	private TaskMigrationEvent taskMigrationEvent;
 
 	public MockRepositoryConnector() {
 		resetDefaults();
@@ -103,7 +112,7 @@ public class MockRepositoryConnector extends AbstractRepositoryConnector {
 
 	@Override
 	public String getConnectorKind() {
-		return REPOSITORY_KIND;
+		return CONNECTOR_KIND;
 	}
 
 	@Override
@@ -179,6 +188,19 @@ public class MockRepositoryConnector extends AbstractRepositoryConnector {
 
 	public void setTaskIdPrefix(String taskIdPrefix) {
 		this.taskIdPrefix = taskIdPrefix;
+	}
+
+	@Override
+	public void migrateTask(TaskMigrationEvent event) {
+		this.taskMigrationEvent = event;
+	}
+
+	public TaskMigrationEvent getTaskMigrationEvent() {
+		return taskMigrationEvent;
+	}
+
+	public void setTaskMigrationEvent(TaskMigrationEvent taskMigrationEvent) {
+		this.taskMigrationEvent = taskMigrationEvent;
 	}
 
 }
